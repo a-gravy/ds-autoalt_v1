@@ -51,4 +51,5 @@ left join top_sakuhins using(main_genre_code)
 where pws.uu is not null
 and cws.uu is not null
 and cws.uu >= top66
+and cws.uu / pws.uu::float > 1
 order by main_genre_code asc, uu_improve desc
