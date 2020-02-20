@@ -84,3 +84,30 @@ from dim_sakuhin_menu dsm
 inner join dim_sakuhin using(sakuhin_public_code)
 inner join alt.dim_menu_category using(menu_public_code)
 )*/
+
+
+create table alt.dim_alt
+(
+  alt_public_code varchar,
+  alt_name varchar,
+  alt_description varchar,
+  alt_type varchar,
+  alt_generation_type varchar,
+  update_time timestamp 
+)
+
+
+insert into alt.dim_alt values
+('ALT000001','新着作品ランキング','ユーネクストで最近配信作品ランキング！','BUSINESS','SOUGOU','PERSONALIZED',now()),
+('ALT000002','新着洋画作品ランキング','ユーネクストで最近配信洋画作品ランキング！','BUSINESS','YOUGA','PERSONALIZED',now()),
+('ALT000003','新着邦画作品ランキング','ユーネクストで最近配信邦画作品ランキング！','BUSINESS','HOUGA','PERSONALIZED',now()),
+('ALT000004','新着漫画作品ランキング','ユーネクストで最近配信漫画作品ランキング！','BUSINESS','ANIME','PERSONALIZED',now()),
+('ALT000005','新着海外ドラマ作品ランキング','ユーネクストで最近配信海外ドラマ作品ランキング！','BUSINESS','FDRAMA','PERSONALIZED',now()),
+('ALT000006','新着バラエティ作品ランキング','ユーネクストで最近配信バラエティ作品ランキング！','BUSINESS','VARIETY','PERSONALIZED',now()),
+('ALT000007','新着音楽作品ランキング','ユーネクストで最近配信音楽作品ランキング！','BUSINESS','MUSIC_IDOL','PERSONALIZED',now()),
+('ALT000008','新着スポーツ作品ランキング','ユーネクストで最近配信スポーツ作品ランキング！','BUSINESS','SPORT','PERSONALIZED',now()),
+('ALT000009','新着ドラマ作品ランキング','ユーネクストで最近配信ドラマ作品ランキング！','BUSINESS','DRAMA','PERSONALIZED',now()),
+('ALT000010','新着アジアドラマ作品ランキング','ユーネクストで最近配信アジアドラマ作品ランキング！','BUSINESS','ADRAMA','PERSONALIZED',now()),
+('ALT000011','新着ニュース作品ランキング','ユーネクストで最近配信ニュース作品ランキング！','BUSINESS','NEWS','PERSONALIZED',now()),
+('ALT000012','新着ドキュメント作品ランキング','ユーネクストで最近配信ドキュメント作品ランキング！','BUSINESS','DOCUMENT','PERSONALIZED',now()),
+('ALT000013','新着キッズ作品ランキング','ユーネクストで最近配信キッズ作品ランキング！','BUSINESS','KIDS','PERSONALIZED',now())
