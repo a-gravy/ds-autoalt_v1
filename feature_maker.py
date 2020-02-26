@@ -384,7 +384,15 @@ class UserStatistics:
             print("user:{} has no alt made".format(self.uid))
             return None
         else:
-            return alt_dict
+            top_n_alt = {}
+            import operator
+            # TODO: now top 5 alts are made
+            for k, v in sorted(alt_dict.items(), key=operator.itemgetter(1), reverse=True):
+                top_n_alt.setdefault(k, v)
+                if len(top_n_alt) >= 5:
+                    break
+
+            return top_n_alt
 
 
 def main():
@@ -425,7 +433,7 @@ def main():
 
     # 4. make statistics of each user's watch history #
     # TODO: test data now, expect we can decide the range
-    history = pd.read_csv("../user_watch_history/watched_list_ippan_2019m10_a.csv")
+    history = pd.read_csv("../user_watch_history/demo_user_history_2020.csv")
 
     # TODO: test for only one user
     # user = history.loc[17207]
@@ -453,7 +461,7 @@ def main():
         x = list(lookup[condition]['sakuhin_public_code'].unique())
         return x
 
-    with open("auto_alts_v2.csv", "w") as w:  # alt, sid list, uid list, score list
+    with open("demo_user_2020_alts.csv", "w") as w:  # alt, sid list, uid list, score list
         for alt, lists in alt_dict.items():
             terms = alt.split("-")
             for x in lists[0]:
@@ -461,27 +469,12 @@ def main():
                 if not isinstance(x, type("x")):
                     print("{} is not str".format(x))
             condition = (lookup[terms[0]] == terms[1]) & (lookup[terms[2]] == terms[3])
-            w.write("{},{},{},{}\n".format(alt, "|".join(do_query(condition)),
+            query_sid_list = do_query(condition)
+            if len(query_sid_list) < 5:
+                continue
+            w.write("{},{},{},{}\n".format(alt, "|".join(query_sid_list),
                                            "|".join([str(x) for x in lists[0]]),
                                         "|".join([str(x) for x in lists[1]])))
-
-    # 5. pass to bpr models & make output #
-
-    # download the lastest model
-    # http://gitlab.unext.in/ds/ds-airflow/blob/master/dags/ippan_bpr_recommender.py
-    """
-    python ds_ippan.py implicit recommend \
-            --model implicit_bpr.model.$DATE \
-            --out bpr_score_toppick.csv \
-            --series_rel sakuhin_series_rel_implicit.csv \
-            --target_users ippan_recommend_a.csv \       #  
-            --target_items new_popular_implicit.csv  \   # -> feature sid list
-            --label 2
-
-    """
-
-    # pass list to model
-
 
 
 if __name__ == '__main__':

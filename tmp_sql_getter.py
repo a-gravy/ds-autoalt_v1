@@ -66,10 +66,113 @@ def get_alt_definition():
     query.to_csv(in_sql, "alt_definition.csv", True)
 
 
+def get_target_users():
+    in_sql = """
+        select
+        distinct
+        user_multi_account_id
+        from alt.target_users
+        """
+    query = PostgresQuery(dw_conn_string)
+    query.to_csv(in_sql, "target_users.csv", True)
+    # TODO: remember to skip the header while using file_to_list
+
+
+def get_lastest_watched_sakuhins():   # for demo
+    in_sql = """
+    with user_data as (
+    select
+    user_multi_account_id,
+    sakuhin_public_code,
+    playback_start_time
+    from alt.target_users tu 
+    inner join (
+      select
+      *
+      from mv_movie_play mmp 
+      where playback_start_time > now() - interval '90 day'
+      and sakuhin_public_code like 'SID%'
+      and playback_time >= 120
+    ) df using(user_multi_account_id)
+    ), user_rank as (
+    select
+    user_multi_account_id,
+    sakuhin_public_code,
+    rank() over (partition by user_multi_account_id order by playback_start_time desc) as ranking
+    from user_data
+    group by 1,2, playback_start_time
+    )
+    select
+    user_multi_account_id,
+    sakuhin_public_code
+    from user_rank
+    where ranking = 1
+    """
+    query = PostgresQuery(dw_conn_string)
+    query.to_csv(in_sql, "last_watched_list.csv", True)
+
+    in_sql = """
+    select sakuhin_public_code, display_name
+    from public.dim_sakuhin
+    where sakuhin_public_code like 'SID%'
+    """
+    query = PostgresQuery(dw_conn_string)
+    query.to_csv(in_sql, "sakuhin_meta.csv", True)
+
+    import pandas as pd
+    last = pd.read_csv("last_watched_list.csv")
+    meta = pd.read_csv("sakuhin_meta.csv")
+    m = pd.merge(last, meta, how='left', on='sakuhin_public_code')
+    m.to_csv("last_watched_alt.csv", index=False)
+
+
+def demo_push_2_dim_alt():
+    import psycopg2
+    conn = psycopg2.connect(database="unext_analytics_dw", user="reco_etl", password="recoreco", host="10.232.201.241",
+                            port="5432")
+    cursor = conn.cursor()
+    with open("../ds-ippan-recommender/alts/demo_user_insert_alts.sql", 'r') as f:
+        content = f.read()
+
+    cursor.execute(content)
+    conn.commit()
+    conn.close()
+
+
+def demo_get_demo_user_history():
+    in_sql = """
+    select
+    user_multi_account_id,
+    array_to_string(array_agg(substring(sakuhin_public_code,4)::int order by playback_start_time  desc),'|') as sakuhin_ids,
+    array_to_string(array_agg(playback_time order by playback_start_time  desc),'|') as playback_times,
+    array_to_string(array_agg(coalesce(play_time,0) order by playback_start_time  desc),'|') as play_times
+    from mv_movie_play_1_prt_ay2020 mmppym 
+    inner join (
+	    select * from alt.target_users
+    ) tu using(user_multi_account_id)
+    where sakuhin_public_code like 'SID%'
+    group by 1
+    --limit 100
+    """
+    query = PostgresQuery(dw_conn_string)
+    query.to_csv(in_sql, "../user_watch_history/demo_user_history_2020.csv", True)
+
+
+def demo_get_dim_table():
+    in_sql = """
+    select
+    alt_public_code  as public_code,
+    alt_name as title,
+    alt_description as description
+    from alt.dim_alt da
+    """
+    query = PostgresQuery(dw_conn_string)
+    query.to_csv(in_sql, "auto_alt_meta.csv", True)
+
 
 def main():
     # get_expire_soon()
-    get_alt_definition()
+    demo_get_dim_table()
 
 
 if __name__ == '__main__':
