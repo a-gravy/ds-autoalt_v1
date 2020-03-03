@@ -44,6 +44,9 @@ def get_trending():
 
 
 def get_top():
+    """
+    weekly_top_genre contains lot of sakuhins, need to pick top N for each type later
+    """
     in_path = str(Path("workspace/alt/weekly_top_genre.sql"))
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
@@ -159,6 +162,10 @@ def demo_get_demo_user_history():
 
 
 def demo_get_dim_table():
+    """
+
+    :return:
+    """
     in_sql = """
     select
     alt_public_code  as public_code,
