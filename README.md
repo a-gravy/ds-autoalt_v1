@@ -1,8 +1,16 @@
-# ds-featuremaker
+# ds-auto_altmaker
 
-TO DO
------
-* まもなく配信終了の作品
-problem :
-2020-02-25 00:00:00	2021-03-31 23:59:59
-2019-02-25 00:00:00	2020-02-24 23:59:59
+https://wiki.unext-info.jp/pages/viewpage.action?pageId=71446362
+
+to automatically generate two main types of ALTs  
+* business logic 
+* content-based logic
+
+
+├── altmaker.py # script to  
+├── content_based_logic.py  
+├── alt_reranker.py  # rerank all alts   
+├── mappings.py  # sakuhin attribute mapping, need to be rewrite  
+├── tmp_sql_getter.py  # localhost version, will move to airflow DAG   
+└── workspace  # sql queries, keep it same as the one in airflow 
+

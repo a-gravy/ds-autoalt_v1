@@ -4,13 +4,6 @@ will be removed after migrating to DAG
 -----
 ecent_30day are the most recent sakuhin
 
-rence_genre_top_50 are the most top 50 recent sakuhin for each genre
-5:14
-saishaishin 120day is the sakuhin that were on unext before and are getting aired recently (within 120 days)
-5:14
-weekly_top_genre is the weekly top sakuhin for each genre
-5:15
-weekly_top_genre_category is the weekly top sakuhin for each genre且つcategory
 """
 from pathlib import Path
 from dstools.utils import get_filepath_content, send_file_to_dest
