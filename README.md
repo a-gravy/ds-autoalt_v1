@@ -7,10 +7,10 @@ to automatically generate two main types of ALTs
 * content-based logic
 
 
-├── altmaker.py # script to  
+├── altmaker.py # script 
 ├── content_based_logic.py  
 ├── alt_reranker.py  # rerank all alts   
 ├── mappings.py  # sakuhin attribute mapping, need to be rewrite  
-├── tmp_sql_getter.py  # localhost version, will move to airflow DAG   
+├── sql_worker.py  # localhost version, will move to airflow DAG   
 └── workspace  # sql queries, keep it same as the one in airflow 
 

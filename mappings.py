@@ -1,7 +1,7 @@
 """
-
+Our definition of type, genres and tags
 """
-# tmply useless
+
 def dict_inverse(my_map):
     inv_map = {}
     for k, v in my_map.items():
@@ -9,6 +9,7 @@ def dict_inverse(my_map):
         inv_map[v].append(k)
     return inv_map
 
+# types come from main_genre_code,
 types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS']
 tpye_mapping = {
     "FDRAMA":"DRAMA",
@@ -17,16 +18,17 @@ tpye_mapping = {
     "HOUGA":"MOVIE"
 }
 
-# TODO: nation mapping
 nations_mapping = {}
 nations = []
 
+# genres come from menu_name
 genres = ['action','comedy', 'detective','documentary','fantasy','historical','horror',
           'musicals_dance', 'mystery', 'romance', 'SF', 'family','war']
 genres_mapping = {
     'アクション':'action',
     'アクション・バトル':'action',
     'コメディ':'comedy',
+    'ギャグ・コメディ':'comedy',
     '刑事・探偵':'detective',
     'ドキュメンタリー':'documentary',
     'ファンタジー':'fantasy',
@@ -50,10 +52,12 @@ genres_mapping = {
     'ミリタリー':'war',
 }
 
+
+# tags come from menu_name
 # TODO: convert to english
 tags = ['おんなのこ',
        '劇場版アニメ（国内）', '青春・学園', 'ロボット・メカ',
-       'おとこのこ',  'フジテレビオンデマンド',  'ギャグ・コメディ',
+       'おとこのこ',  'フジテレビオンデマンド',
        'どうぶつ', 'スポーツ・競技', '日テレオンデマンド',  'ヒーロー・かいじゅう',
        'ディズニー', 'R指定', 'パラマウント',
        'ワーナーTV',  'テレビ東京オンデマンド', 'ガールズ',

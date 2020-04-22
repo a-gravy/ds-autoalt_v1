@@ -40,10 +40,12 @@ def get_top():
     """
     weekly_top_genre contains lot of sakuhins, need to pick top N for each type later
     """
-    in_path = str(Path("workspace/alt/weekly_top_genre.sql"))
+    # in_path = str(Path("workspace/alt/weekly_top_genre.sql"))
+    in_path = str(Path("workspace/alt/personalized/daily_top.sql"))
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
-    query.to_csv(in_sql, "weekly_top.csv", True)
+    # query.to_csv(in_sql, "weekly_top.csv", True)
+    query.to_csv(in_sql, "data/daily_top.csv", True)
 
 
 def get_expire_soon():
@@ -59,7 +61,7 @@ def get_alt_definition():
     order by alt_public_code asc
     """
     query = PostgresQuery(dw_conn_string)
-    query.to_csv(in_sql, "alt_definition.csv", True)
+    query.to_csv(in_sql, "data/alt_definition.csv", True)
 
 
 def get_target_users():
@@ -172,7 +174,7 @@ def demo_get_dim_table():
 
 def main():
     # get_expire_soon()
-    demo_get_dim_table()
+    get_top()
 
 
 if __name__ == '__main__':

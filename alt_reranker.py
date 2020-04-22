@@ -1,13 +1,27 @@
-"""
-to rerank alts,
-* the tmp place is @ds-ippan-recommender/tmp_alt_reranker.py
-* rerank function is also tmply inside ds-ippan-recommender
+"""alt_reranker
+
+Usage:
+    alt_reranker.py (new_arrival) --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
+    alt_reranker.py top <alt_public_code> <alt_genre> --target_users=PATH
+
+Options:
+    -h --help Show this screen
+    --version
+    --model PATH         File path location of the trained model
+    --top_n=<tn>         Number of recommended items. [default: 10]
+    alt_public_code      detail@dim_alt
+    alt_genre            SOUGOU for main page, genre name for each genre
+
+
 """
 import os, logging
 import pandas as pd
 from dstools.logging import setup_logging
 from dstools.utils import normalize_path, save_list_to_file, file_to_list
 from bpr.implicit_recommender import rerank, load_model
+from docopt import docopt
+from dstools.logging import setup_logging
+from dstools.cli.parser import parse
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -57,18 +71,14 @@ class alt_reranker:
                 self.series_dict[row[1]["sakuhin_public_code"]] = row[1]["series_id"]
             del series_df
 
-    def new_arrival(self):
+    def new_arrival(self, alt_public_code="ALT000001", alt_genre="SOUGOU",
+                    input_path="data/new_arrival.csv", output_path="new_arrival_reranked.csv",
+                    ):
         """
         input file name: new_arrival.csv
         input format: sakuhin_public_code,production_year,main_genre_code,sale_start_datetime,ftu,uu
 
         """
-        input_path = "../ds-auto_altmakers/new_arrival.csv"
-        output_path = "alts/new_arrival_reranked.csv"
-
-        alt_public_code = "ALT000001"
-        alt_genre = "SOUGOU"
-
         # logic 1. just rerank using user's score
         target_items = []
         with open(input_path, 'r') as r:
@@ -80,7 +90,7 @@ class alt_reranker:
                 else:
                     break
 
-        logging.info("{} of new-arrival target items loaded".format(len(target_items)))
+        logging.info("{} of new-arrival items as target items loaded".format(len(target_items)))
 
         with open(output_path, "w") as w:
             w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
@@ -414,8 +424,6 @@ def demo_last_similar_sakuhin():
                             alt_public_code, arrs[2].replace("'", "")))
 
 
-# TODO: an auto way to fetech the alt information from GP
-# TODO: auto execute tasks
 config = {
     "ALT000001": {},
 }
@@ -424,17 +432,49 @@ genre_list = {'SOUGOU', 'YOUGA', 'HOUGA', 'ANIME', 'FDRAMA', 'VARIETY', 'MUSIC_I
               'NEWS', 'DOCUMENT', 'KIDS'}
 
 
+# TODO: workaround solution here, should have smart way to do it, since it is same for every user
+def daily_top(opts, alt_public_code="ALT000001", alt_genre="SOUGOU",
+              input_path="data/daily_top.csv", output_path="daily_top_processed.csv"):
+    assert opts.get("target_users", None), "Wrong, need target_users!!"
+    target_users = file_to_list(opts.get("target_users", None))
+
+    SIDs = []
+    with open(input_path, 'r') as r:
+        r.readline()  # skip the first line
+        while True:
+            line = r.readline()
+            if line:
+                SIDs.append(line.rstrip().split(",")[0])
+            else:
+                break
+    SIDs = '|'.join(SIDs)
+    logging.info('Daily Top in UNEXT = {} for {} target users'.format(SIDs, len(target_users)))
+    with open(output_path, "w") as w:
+        w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
+        for uid in target_users:
+            w.write("{},{},{},{},{:.4f}\n".format(uid, alt_public_code, alt_genre, SIDs, 1.0))
+
+
 def main():
-    opts = {
-        "model": "../ippan_verification/implicit_bpr.model.2020-02-23",
-        "nb_reco": 20,  # 50 for all,  20 for genre
-        "target_users": "../ds-auto_altmakers/target_users.csv",
-        "filter_items": "../ippan_verification/filter_out_sakuhin_implicit.csv",
-        "watched_list_rerank": "../ippan_verification/watched_list_rerank.csv"
-    }
-    # alt_reranker(opts).new_arrival()
+    arguments = docopt(__doc__, version='0.9.0')
+    cmd, opts = parse(arguments)
+    logger.info(f"Executing '{cmd}' with arguments {opts}")
+
+    opts.update({
+        #"model": "../ippan_verification/implicit_bpr.model.2020-02-23",
+        #"nb_reco": opts['top_n'],  # 50 for all,  20 for genre
+        #"target_users": "data/target_users.csv",
+        "filter_items": "data/filter_out_sakuhin_implicit.csv",
+        "watched_list_rerank": "data/watched_list_rerank.csv"
+    })
+    if arguments['new_arrival']:
+        alt_reranker(opts).new_arrival(input_path="data/new_arrival.csv",
+                                   alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
+    elif arguments['top']:
+        daily_top(opts, input_path="data/daily_top.csv",
+                  alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
     # alt_reranker(opts).new_arrival_by_genre()
-    alt_reranker(opts).trending()
+    # alt_reranker(opts).trending()
     # alt_reranker(opts).weekly_top()
     # alt_reranker(opts).history_based_alts()
     # demo_last_similar_sakuhin()
