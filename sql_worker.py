@@ -8,6 +8,7 @@ ecent_30day are the most recent sakuhin
 from pathlib import Path
 from dstools.utils import get_filepath_content, send_file_to_dest
 from dstools.connectors.postgres import Query as PostgresQuery
+from dstools.connectors.mysql import Query as mysql
 from dstools.connectors.s3 import S3
 
 dw_conn_string = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw?charset=utf8"
@@ -172,9 +173,27 @@ def demo_get_dim_table():
     query.to_csv(in_sql, "auto_alt_meta.csv", True)
 
 
+def get_sth_postegres():
+    task = "unext_sakuhin_meta"
+
+    in_path = str(Path("workspace/alt/personalized/{}.sql".format(task)))
+    in_sql = get_filepath_content(in_path)
+    query = PostgresQuery(dw_conn_string)
+    query.to_csv(in_sql, "data/{}.csv".format(task), True)
+
+
+def get_sth_tidb():
+    tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'
+    task = "new_user_sessions"
+
+    in_sql = get_filepath_content(str(Path("workspace/alt/personalized/{}.sql".format(task))))
+    query = mysql(tidb_conn_string)
+    query.to_csv(in_sql, "data/{}.csv".format(task), True)
+
+
 def main():
     # get_expire_soon()
-    get_top()
+    get_sth_postegres()
 
 
 if __name__ == '__main__':

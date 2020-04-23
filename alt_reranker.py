@@ -20,12 +20,9 @@ from dstools.logging import setup_logging
 from dstools.utils import normalize_path, save_list_to_file, file_to_list
 from bpr.implicit_recommender import rerank, load_model
 from docopt import docopt
-from dstools.logging import setup_logging
 from dstools.cli.parser import parse
 
-setup_logging()
 logger = logging.getLogger(__name__)
-
 
 class alt_reranker:
     """
@@ -432,48 +429,10 @@ genre_list = {'SOUGOU', 'YOUGA', 'HOUGA', 'ANIME', 'FDRAMA', 'VARIETY', 'MUSIC_I
               'NEWS', 'DOCUMENT', 'KIDS'}
 
 
-# TODO: workaround solution here, should have smart way to do it, since it is same for every user
-def daily_top(opts, alt_public_code="ALT000001", alt_genre="SOUGOU",
-              input_path="data/daily_top.csv", output_path="daily_top_processed.csv"):
-    assert opts.get("target_users", None), "Wrong, need target_users!!"
-    target_users = file_to_list(opts.get("target_users", None))
-
-    SIDs = []
-    with open(input_path, 'r') as r:
-        r.readline()  # skip the first line
-        while True:
-            line = r.readline()
-            if line:
-                SIDs.append(line.rstrip().split(",")[0])
-            else:
-                break
-    SIDs = '|'.join(SIDs)
-    logging.info('Daily Top in UNEXT = {} for {} target users'.format(SIDs, len(target_users)))
-    with open(output_path, "w") as w:
-        w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
-        for uid in target_users:
-            w.write("{},{},{},{},{:.4f}\n".format(uid, alt_public_code, alt_genre, SIDs, 1.0))
-
-
 def main():
     arguments = docopt(__doc__, version='0.9.0')
     cmd, opts = parse(arguments)
     logger.info(f"Executing '{cmd}' with arguments {opts}")
-
-    opts.update({
-        #"model": "../ippan_verification/implicit_bpr.model.2020-02-23",
-        #"nb_reco": opts['top_n'],  # 50 for all,  20 for genre
-        #"target_users": "data/target_users.csv",
-        "filter_items": "data/filter_out_sakuhin_implicit.csv",
-        "watched_list_rerank": "data/watched_list_rerank.csv"
-    })
-    if arguments['new_arrival']:
-        alt_reranker(opts).new_arrival(input_path="data/new_arrival.csv",
-                                   alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
-    elif arguments['top']:
-        daily_top(opts, input_path="data/daily_top.csv",
-                  alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
-    # alt_reranker(opts).new_arrival_by_genre()
     # alt_reranker(opts).trending()
     # alt_reranker(opts).weekly_top()
     # alt_reranker(opts).history_based_alts()

@@ -299,10 +299,10 @@ class UserStatistics:
     def __init__(self, uid, sakuhin_dict):
         self.uid = uid
         self.sakuhin_dict = sakuhin_dict
-        self.types = {}  # movie:24 sec
-        self.nations = {}  # japan:24 sec
-        self.genre = {}  # action:24 sec
-        self.tags = {}  # sf:24 sec
+        self.types = {}  # movie:xx sec
+        self.nations = {}  # japan:xx sec
+        self.genre = {}  # action:xx sec
+        self.tags = {}  # sf:xx sec
 
     def add(self, sid, playback_time):  # add one record ex: 14736, 30
         # sakuhin_dict[sid] get VideoFeatures object
@@ -393,6 +393,43 @@ class UserStatistics:
                     break
 
             return top_n_alt
+
+
+def worker():
+    # 1. sakuhin meta information
+    metatable = pd.read_csv("data/unext_sakuhin_meta.csv")  # from unext_sakuhin_meta.sql
+
+    # 2. organize meta information for each sakuhin #
+    # sakuhin_dict{sakuhin_public_code: VideoFeatures}
+    sakuhin_dict = {}
+    for i, row in enumerate(metatable.iterrows()):
+        row = row[1]
+        sakuhin_dict[row['sakuhin_public_code']] = VideoFeatures(row)
+
+    del metatable
+
+    # 3. make lookup table #
+    lookup = pd.read_sql(sql_lookuptable, engine)
+
+    def type_mapping(typename):
+        return tpye_mapping.get(typename, typename)
+
+    def genre_mapping(menu_name):
+        genre = genres_mapping.get(menu_name, None)
+        if genre:
+            return genre
+        else:
+            return None
+
+    def tag_mapping(menu_name):
+        if menu_name in tags:  # TODO: convert to english
+            return menu_name
+        else:
+            return None
+
+    lookup['genre'] = list(map(genre_mapping, lookup['menu_name']))
+    lookup['tag'] = list(map(tag_mapping, lookup['menu_name']))
+    lookup['type'] = list(map(type_mapping, lookup['main_genre_code']))
 
 
 def main():
