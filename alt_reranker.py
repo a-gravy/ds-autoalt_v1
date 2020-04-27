@@ -40,8 +40,9 @@ class alt_reranker:
         self.filter_items_path = normalize_path(opts.get("filter_items", None))
         self.watched_list_rerank_path = normalize_path(opts.get("watched_list_rerank", None))
         self.series_rel_path = normalize_path(opts.get("series_rel", None))
-        self.nb_reco = int(opts.get("nb_reco", 50))
+        self.nb_reco = int(opts.get("nb_reco", 30))
 
+        # TODO consider make self.target_users as set
         self.target_users = file_to_list(
             self.target_users_path) if self.target_users_path is not None else self.model.user_item_matrix.user2id
 
@@ -50,7 +51,7 @@ class alt_reranker:
             len(self.target_users) if self.target_users else len(self.model.user_item_matrix.user2id),
             len(self.target_items) if self.target_items else len(self.model.user_item_matrix.item2id)
         ))
-
+        # TODO:set
         self.filter_items = file_to_list(self.filter_items_path) if self.filter_items_path is not None else {}
 
         self.dict_watched_sakuhin = {}
@@ -274,9 +275,9 @@ class alt_reranker:
 
         self.output_for_cassandra(genre_dict, alt_code_lookup, output_path)
 
-    def history_based_alts(self):
+    def genre_rows(self, input_path="data/genre_rows.csv", output_path="genre_rows_reranked.csv"):
         """
-        run rerank on user watch history-based alts
+        run reranking on genre_alts for personalization
 
         input: alt, sid list, uid list, score list
 
@@ -288,25 +289,29 @@ class alt_reranker:
         alt_public_code, alt_name, alt_description, alt_type, alt_sub_type, main_genre_code, alt_generation_type, update_time
         'ALT000001','nations-日本-genre-romance','あなたの視聴履歴から','CONTENT_BASED','USER_STATISTICS','SOUGOU','PERSONALIZED'
         """
-        input_path = "../ds-auto_altmakers/demo_user_2020_alts.csv"
-        output_path = "alts/demo_user_2020_alts_reranked.csv"
-
         alt_dict = {}  # nations-日本-genre-romance:ALT000001
-        alt_index = 1000
+        alt_index = 1000  # TODO
 
         with open(output_path, "w") as w:
             w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
             with open(input_path, "r") as r:
+                nb_genrealt_done=0
+                line_written = 0
                 while True:
                     line = r.readline()
                     if line:
-                        # TODO: for demo
                         arrs = line.rstrip().split(",")
-                        demo_users = [x for x in arrs[2].split("|") if x in self.target_users]
+                        """
+                        print("arrs[2].split() = {} users".format(len(arrs[2].split("|"))))
+
+                        demo_users = [x for x in arrs[2].split("|") if x in tu]
+
+                        print("reranking... for {} users".format(len(demo_users)))
 
                         if len(demo_users) == 0:
-                            print("no target user for this alts")
+                            logging.info("no target user for this alts")
                             continue
+                        """
 
                         alt_public_code = "ALT" + "0" * (6 - len(str(alt_index))) + str(alt_index)
                         alt_dict.setdefault(arrs[0], alt_public_code)
@@ -314,10 +319,12 @@ class alt_reranker:
 
                         # this score is feature score from user history statistics, use it instead of bpr score
                         alt_score_list = [float(s) for s in arrs[3].split("|")]
+
                         for i, (uid, reranked_list, _) in enumerate(
-                                rerank(model=self.model, target_users=demo_users,  # arrs[2].split("|"),
-                                       target_items=arrs[1].split("|"), filter_already_liked_items=False,
-                                       batch_size=5000)):
+                                rerank(model=self.model, target_users=set(arrs[2].split("|")),
+                                       target_items=set(arrs[1].split("|")), filter_already_liked_items=False,
+                                       batch_size=300)):
+
                             # item filtering
                             reranked_list = [sid for sid in reranked_list
                                              if sid not in set(self.filter_items) and
@@ -326,21 +333,21 @@ class alt_reranker:
                             if len(reranked_list) < self.nb_reco:
                                 continue
 
-                            reranked_list = reranked_list[:self.nb_reco]
-
                             w.write("{},{},SOUGOU,{},{:.4f}\n".format(uid, alt_public_code,
-                                                                      "|".join(reranked_list),
+                                                                      "|".join(reranked_list[:self.nb_reco]),
                                                                       alt_score_list[i] + 3.0))  # TODO: for DEMO
+                            line_written+=1
+                        nb_genrealt_done += 1
+                        if 1:  # counter%100==0:
+                            logging.info("{} done, {} lines done with {} lines written".format(arrs[0],
+                                nb_genrealt_done, line_written))
 
-                        logging.info("[stastistics_alts] one line done")
 
                     else:
                         break
 
-        print(alt_dict)
-
         # write sql to insert rows in dim.alt
-        with open("alts/demo_user_insert_alts.sql", 'w') as w:
+        with open("genre_rows_insert.sql", 'w') as w:
             w.write("insert into alt.dim_alt_r values\n")
             for i, (alt, alt_public_code) in enumerate(alt_dict.items()):
                 if i != len(alt_dict) - 1:

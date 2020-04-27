@@ -4,7 +4,7 @@ Usage:
     altmaker.py (new_arrival) --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
     altmaker.py top <alt_public_code> <alt_genre> --target_users=PATH
     altmaker.py byw <alt_public_code> <alt_genre> [--top_n=<tn>]
-    altmaker.py genre_row <alt_public_code> <alt_genre>
+    altmaker.py genre_row --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
 
 Options:
     -h --help Show this screen
@@ -21,6 +21,7 @@ from dstools.logging import setup_logging
 from dstools.cli.parser import parse
 from dstools.utils import normalize_path, save_list_to_file, file_to_list
 import alt_reranker
+from genre_row_maker import worker as genre_row_maker
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -133,7 +134,7 @@ def main():
 
     opts.update({
         # "model": "../ippan_verification/implicit_bpr.model.2020-02-23",
-        # "nb_reco": opts['top_n'],  # 50 for all,  20 for genre
+        "nb_reco": 30,  # 50 for all,  20 for genre
         # "target_users": "data/target_users.csv",
         "filter_items": "data/filter_out_sakuhin_implicit.csv",
         "watched_list_rerank": "data/watched_list_rerank.csv"
@@ -147,9 +148,25 @@ def main():
                   alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
     elif arguments['byw']:
         byw_rows(opts)
-    # alt_reranker(opts).new_arrival_by_genre()
-
-
+    elif arguments['genre_row']:
+        genre_row_maker(nb_genre_row=3, nb_neco=opts['nb_reco'])  # 3 genre alts for every user
+        alt_reranker.alt_reranker(opts).genre_rows(input_path="data/genre_rows.csv",
+                                                   output_path="genre_rows_reranked.csv")
+        # TODO
+        """
+        performance checking: takes around 1:46 
+2020-04-24 19:53:52,791 - root - INFO - using model for 1515250 users and 23175 items
+2020-04-24 19:56:02,477 - root - INFO - type-DRAMA-nations-アメリカ done, 1 lines done with 13022 lines written
+2020-04-24 19:56:09,888 - root - INFO - type-DRAMA-genre-action done, 2 lines done with 15118 lines written
+2020-04-24 19:57:24,238 - root - INFO - nations-アメリカ-genre-action done, 3 lines done with 21914 lines written
+2020-04-24 20:18:31,469 - root - INFO - type-ANIME-nations-日本 done, 4 lines done with 136432 lines written
+2020-04-24 20:19:51,404 - root - INFO - type-ANIME-tag-劇場版アニメ（国内） done, 5 lines done with 147403 lines written
+2020-04-24 20:20:29,739 - root - INFO - type-ANIME-genre-mystery done, 6 lines done with 158296 lines written
+...
+2020-04-24 21:39:44,176 - root - INFO - nations-オーストラリア-genre-mystery done, 204 lines done with 690362 lines written
+2020-04-24 21:39:44,238 - root - INFO - type-VARIETY-tag-釣り done, 205 lines done with 690362 lines written
+2020-04-24 21:39:44,296 - root - INFO - type-VARIETY-tag-教養・語学 done, 206 lines done with 690362 lines written
+        """
 
 if __name__ == '__main__':
     main()

@@ -174,7 +174,7 @@ def demo_get_dim_table():
 
 
 def get_sth_postegres():
-    task = "unext_sakuhin_meta"
+    task = "unext_sakuhin_meta_lookup"  # "unext_sakuhin_meta"
 
     in_path = str(Path("workspace/alt/personalized/{}.sql".format(task)))
     in_sql = get_filepath_content(in_path)
@@ -184,16 +184,17 @@ def get_sth_postegres():
 
 def get_sth_tidb():
     tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'
-    task = "new_user_sessions"
+    task = "user_sessions"
 
     in_sql = get_filepath_content(str(Path("workspace/alt/personalized/{}.sql".format(task))))
     query = mysql(tidb_conn_string)
-    query.to_csv(in_sql, "data/{}.csv".format(task), True)
+    preoperator = "set group_concat_max_len = 10240;"  # 4294967295
+    query.to_csv(in_sql, "data/{}.csv".format(task), True, preoperator=preoperator)
 
 
 def main():
     # get_expire_soon()
-    get_sth_postegres()
+    get_sth_tidb()
 
 
 if __name__ == '__main__':
