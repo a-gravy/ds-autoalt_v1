@@ -5,6 +5,7 @@ will be removed after migrating to DAG
 ecent_30day are the most recent sakuhin
 
 """
+import tempfile
 from pathlib import Path
 from dstools.utils import get_filepath_content, send_file_to_dest
 from dstools.connectors.postgres import Query as PostgresQuery
@@ -12,7 +13,7 @@ from dstools.connectors.mysql import Query as mysql
 from dstools.connectors.s3 import S3
 
 dw_conn_string = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw?charset=utf8"
-
+s3_root_location = "s3://unext-datascience/alts/"
 
 def get_newarrival():
     in_path = str(Path("workspace/alt/recent_30day.sql"))
@@ -174,7 +175,8 @@ def demo_get_dim_table():
 
 
 def get_sth_postegres():
-    task = "unext_sakuhin_meta_lookup"  # "unext_sakuhin_meta"
+    # chose the _.sql in workspace/alt/personalized/
+    task = "new_arrival_EP"  # "unext_sakuhin_meta"
 
     in_path = str(Path("workspace/alt/personalized/{}.sql".format(task)))
     in_sql = get_filepath_content(in_path)
@@ -183,13 +185,25 @@ def get_sth_postegres():
 
 
 def get_sth_tidb():
+    # TODO how to use tidb_conn_string_safe
+    tidb_conn_string_safe = 'jdbc:mysql:loadbalance://10.232.201.18:3306,10.232.201.19:3306,10.232.201.20:3306/recodb?autoReconnect=false&loadBalanceStrategy=bestResponseTime'
     tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'
-    task = "user_sessions"
+    task = "new_user_sessions_7days"
 
     in_sql = get_filepath_content(str(Path("workspace/alt/personalized/{}.sql".format(task))))
     query = mysql(tidb_conn_string)
     preoperator = "set group_concat_max_len = 10240;"  # 4294967295
     query.to_csv(in_sql, "data/{}.csv".format(task), True, preoperator=preoperator)
+
+
+def push_2_dw():
+    #_, tmp_file_path = tempfile.mkstemp(dir="/data")
+    #from_file = s3_root_location + f"anikore_sid_matching.csv.gz"
+    #S3.download_file(from_file, tmp_file_path)
+
+    query = PostgresQuery(dw_conn_string)
+    #preoperator = "truncate table kensaku.dim_anikore_matching"
+    query.upload_from_gzipped_csv("alt.dim_alt_n", "data/dim_alt_n.csv.gz", delete_source_file=True)
 
 
 def main():

@@ -572,23 +572,17 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
         while True:
             line = r.readline()
             if line:
-                if '"' not in line:  # for handle 'PM023044443,SID0040886,20.013733333333334\n'
-                    arrs = line.rstrip().split(",")
-                    user_id = arrs[0]
-                    sid_list = [arrs[1]]
-                    watch_time_list = [arrs[2]]
-                else:
-                    arrs = line.rstrip().split('"')
-                    user_id = arrs[0][:-1]  # [:-1] for removing ,
-                    sid_list = [sid for sid in arrs[1].split(",") if 'SID' in sid]
-                    watch_time_list = [w for w in arrs[3].split(",") if w != '']
+                arrs = line.rstrip().replace('"', '').split(',')
+                sid_list, watch_time_list = [], []
+                for v in arrs[1:]:
+                    if "SID" in v:
+                        sid_list.append(v)
+                    else:
+                        watch_time_list.append(v)
+                assert len(sid_list) == len(watch_time_list), "fail@{} line, user:{},  {} - {}".format(
+                    line, arrs[0], len(sid_list), len(watch_time_list))
 
-                    # TODO workaround: align len of sid_list and watch_time_list
-                    min_nb = min(len(sid_list), len(watch_time_list))
-                    sid_list = sid_list[:min_nb]
-                    watch_time_list = watch_time_list[:min_nb]
-
-                stat = UserStatistics(user_id, sakuhin_dict)
+                stat = UserStatistics(arrs[0], sakuhin_dict)
 
                 # add every session to user's statistics
                 for sid, watch_time in zip(sid_list,  watch_time_list):
@@ -600,7 +594,7 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
                 if user_alts:
                     for alt, score in user_alts.items():
                         alt_dict.setdefault(alt, [[], []])
-                        alt_dict[alt][0].append(user_id)
+                        alt_dict[alt][0].append(arrs[0])
                         alt_dict[alt][1].append(score)
 
                 if counter%1000==0:
@@ -631,83 +625,30 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
     logging.info("nb_genre_row_written = {}".format(nb_genre_row_written))
 
 
+def user_session_data_checker(user_sessions_path="data/user_sessions.csv"):
+    with open(user_sessions_path, "r") as r:
+        r.readline()
+        counter = 0
+        while True:
+            line = r.readline()
+            if line:
+                arrs = line.rstrip().replace('"', '').split(',')
+                sid_list, watch_time_list = [], []
+                for v in arrs[1:]:
+                    if "SID" in v:
+                        sid_list.append(v)
+                    else:
+                        watch_time_list.append(v)
+                assert len(sid_list) == len(watch_time_list), "fail@{} line, user:{},  {} - {}".format(
+                    line, arrs[0], len(sid_list), len(watch_time_list))
+                counter += 1
+            else:
+                break
+    print("check done, no problem")
+
+
 def main():
-    # 1. get meta information
-    metatable = pd.read_sql(sql_metatable, engine)
-
-    # 2. organize meta information for each sakuhin #
-    # sakuhin_dict{sakuhin_public_code: VideoFeatures}
-    sakuhin_dict = {}
-    for i, row in enumerate(metatable.iterrows()):
-        row = row[1]
-        sakuhin_dict[row['sakuhin_public_code']] = VideoFeatures(row)
-
-    del metatable
-
-    # 3. make lookup table #
-    lookup = pd.read_sql(sql_lookuptable, engine)
-
-    def type_mapping(typename):
-        return tpye_mapping.get(typename, typename)
-
-    def genre_mapping(menu_name):
-        genre = genres_mapping.get(menu_name, None)
-        if genre:
-            return genre
-        else:
-            return None
-
-    def tag_mapping(menu_name):
-        if menu_name in tags:  # TODO: convert to english
-            return menu_name
-        else:
-            return None
-
-    lookup['genre'] = list(map(genre_mapping, lookup['menu_name']))
-    lookup['tag'] = list(map(tag_mapping, lookup['menu_name']))
-    lookup['type'] = list(map(type_mapping, lookup['main_genre_code']))
-
-    # 4. make statistics of each user's watch history #
-    # TODO: test data now, expect we can decide the range
-    history = pd.read_csv("../user_watch_history/demo_user_history_2020.csv")
-
-    # TODO: test for only one user
-    # user = history.loc[17207]
-
-    alt_dict = {}
-    for i, row in enumerate(history.iterrows()):
-        user = row[1]
-        # print("{}-th {}".format(i+1, user))
-        stat = UserStatistics_v2(user['user_multi_account_id'], sakuhin_dict)
-        for id, watch_time, video_length in zip(user['sakuhin_ids'].split("|"),
-                                                user['playback_times'].split("|"), user['play_times'].split("|")):
-            stat.add(id, watch_time)
-        user_alts = stat.make_alt()
-
-        if user_alts:
-            for alt, score in user_alts.items():
-                alt_dict.setdefault(alt, [[], []])
-                alt_dict[alt][0].append(user['user_multi_account_id'])
-                alt_dict[alt][1].append(score)
-
-    def do_query(condition):
-        x = list(lookup[condition]['sakuhin_public_code'].unique())
-        return x
-
-    with open("demo_user_2020_alts.csv", "w") as w:  # alt, sid list, uid list, score list
-        for alt, lists in alt_dict.items():
-            terms = alt.split("-")
-            for x in lists[0]:
-                # TODO
-                if not isinstance(x, type("x")):
-                    print("{} is not str".format(x))
-            condition = (lookup[terms[0]] == terms[1]) & (lookup[terms[2]] == terms[3])
-            query_sid_list = do_query(condition)
-            if len(query_sid_list) < 5:
-                continue
-            w.write("{},{},{},{}\n".format(alt, "|".join(query_sid_list),
-                                           "|".join([str(x) for x in lists[0]]),
-                                        "|".join([str(x) for x in lists[1]])))
+    user_session_data_checker()
 
 
 if __name__ == '__main__':

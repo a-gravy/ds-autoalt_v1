@@ -1,10 +1,10 @@
 """altmaker
 
 Usage:
-    altmaker.py (new_arrival) --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
-    altmaker.py top <alt_public_code> <alt_genre> --target_users=PATH
-    altmaker.py byw <alt_public_code> <alt_genre> [--top_n=<tn>]
-    altmaker.py genre_row --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
+    altmaker.py top <alt_public_code> <alt_domain> --target_users=PATH
+    altmaker.py byw <alt_public_code> <alt_domain> [--top_n=<tn>]
+    altmaker.py new_arrival --model=PATH <alt_public_code> <alt_domain> [--top_n=<tn> | --target_users=PATH]
+    altmaker.py genre_row --model=PATH <alt_public_code> <alt_domain> [--top_n=<tn> | --target_users=PATH]
 
 Options:
     -h --help Show this screen
@@ -12,7 +12,7 @@ Options:
     --model PATH         File path location of the trained model
     --top_n=<tn>         Number of recommended items. [default: 10]
     alt_public_code      detail@dim_alt
-    alt_genre            SOUGOU for main page, genre name for each genre
+    alt_domain           SOUGOU, movie, book, manga, music … etc. SOUGOU means mixing all ALT_domain types together
 
 """
 import os, logging
@@ -22,16 +22,17 @@ from dstools.cli.parser import parse
 from dstools.utils import normalize_path, save_list_to_file, file_to_list
 import alt_reranker
 from genre_row_maker import worker as genre_row_maker
+from new_arrival import make_alt as new_arrival_maker
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 
 # TODO: workaround solution here, should have smart way to do it, since it is same for every user
-def daily_top(opts, alt_public_code="ALT000001", alt_genre="SOUGOU",
+def daily_top(opts, alt_public_code="ATL_daily_top", alt_genre="SOUGOU",
               input_path="data/daily_top.csv", output_path="daily_top_processed.csv"):
     assert opts.get("target_users", None), "Wrong, need target_users!!"
-    target_users = file_to_list(opts.get("target_users", None))
+    _, target_users, _ = alt_reranker.read_target_user(opts.get("target_users", None))
 
     SIDs = []
     with open(input_path, 'r') as r:
@@ -129,8 +130,9 @@ for quick development:
 """
 def main():
     arguments = docopt(__doc__, version='0.9.0')
+    logging.info(arguments)
     cmd, opts = parse(arguments)
-    logger.info(f"Executing '{cmd}' with arguments {opts}")
+    #logger.info(f"Executing '{cmd}' with arguments {opts}")
 
     opts.update({
         # "model": "../ippan_verification/implicit_bpr.model.2020-02-23",
@@ -140,9 +142,9 @@ def main():
         "watched_list_rerank": "data/watched_list_rerank.csv"
     })
     if arguments['new_arrival']:
-        alt_reranker.alt_reranker(opts).new_arrival(input_path="data/new_arrival.csv",
-                                       alt_public_code=arguments["<alt_public_code>"],
-                                       alt_genre=arguments["<alt_genre>"])
+        new_arrival_maker(arguments['--model'], alt_public_code=arguments["<alt_public_code>"], alt_domain=arguments["<alt_domain>"])
+        # altmaker.py (new_arrival) --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
+        # alt_reranker.alt_reranker(opts).new_arrival(input_path="data/new_arrival.csv", alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
     elif arguments['top']:
         daily_top(opts, input_path="data/daily_top.csv",
                   alt_public_code=arguments["<alt_public_code>"], alt_genre=arguments["<alt_genre>"])
@@ -166,6 +168,18 @@ def main():
 2020-04-24 21:39:44,176 - root - INFO - nations-オーストラリア-genre-mystery done, 204 lines done with 690362 lines written
 2020-04-24 21:39:44,238 - root - INFO - type-VARIETY-tag-釣り done, 205 lines done with 690362 lines written
 2020-04-24 21:39:44,296 - root - INFO - type-VARIETY-tag-教養・語学 done, 206 lines done with 690362 lines written
+-----------
+around 2:40 
+2020-04-27 22:06:20,621 - root - INFO - using model for 1515250 users and 23175 items
+2020-04-27 22:06:33,557 - root - INFO - type-DRAMA-genre-romance ing, 0 lines done with 0 lines written
+2020-04-27 22:16:29,040 - root - INFO - nations-韓国-genre-romance ing, 1 lines done with 53852 lines written
+...
+2020-04-28 00:45:31,020 - root - INFO - type-VARIETY-tag-グラビア ing, 202 lines done with 1022057 lines written
+2020-04-28 00:45:31,121 - root - INFO - type-VARIETY-tag-釣り ing, 203 lines done with 1022060 lines written
+2020-04-28 00:45:31,185 - root - INFO - type-VARIETY-tag-スポーツ・競技 ing, 204 lines done with 1022060 lines written
+2020-04-28 00:45:31,245 - root - INFO - type-VARIETY-tag-教養・語学 ing, 205 lines done with 1022060 lines written
+2020-04-28 00:45:31,304 - root - INFO - nations-カナダ-genre-action ing, 206 lines done with 1022060 lines written
+2020-04-28 00:45:31,365 - root - INFO - type-MUSIC_IDOL-tag-TBSオンデマンド ing, 207 lines done with 1022063 lines written
         """
 
 if __name__ == '__main__':

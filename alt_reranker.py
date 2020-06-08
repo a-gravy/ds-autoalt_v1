@@ -24,6 +24,25 @@ from dstools.cli.parser import parse
 
 logger = logging.getLogger(__name__)
 
+
+# TODO: it is for all users before A/B testing, need to change format if we need to do A/B testing
+def read_target_user(input_path):
+    # format = pfid,uid,super_user
+    pfid_list, uid_list, is_super_user_list = [], [], []
+    with open(input_path, 'r') as r:
+        r.readline()  # skip header
+        while True:
+            line = r.readline()
+            if line:
+                arrs = line.rstrip().split(",")
+                pfid_list.append(arrs[0])
+                uid_list.append(arrs[1])
+                is_super_user_list.append(arrs[2])
+            else:
+                break
+    return pfid_list, uid_list, is_super_user_list
+
+
 class alt_reranker:
     """
     """
@@ -43,8 +62,9 @@ class alt_reranker:
         self.nb_reco = int(opts.get("nb_reco", 30))
 
         # TODO consider make self.target_users as set
-        self.target_users = file_to_list(
-            self.target_users_path) if self.target_users_path is not None else self.model.user_item_matrix.user2id
+        _, self.target_users, _ = read_target_user(self.target_users_path)
+        #file_to_list(
+        #    self.target_users_path) if self.target_users_path is not None else self.model.user_item_matrix.user2id
 
         self.target_items = file_to_list(self.target_items_path) if self.target_items_path is not None else None
         logging.info("using model for {} users and {} items".format(
@@ -284,10 +304,8 @@ class alt_reranker:
         [for starship]
         output: user_nulti_account_id, alt_public_code, alt_genre(always SOUGOU), sakuhin_codes, alt_score
 
-        [for .sql to insert row to dim_alt]
+        [for csv to dim_alt]
         output:
-        alt_public_code, alt_name, alt_description, alt_type, alt_sub_type, main_genre_code, alt_generation_type, update_time
-        'ALT000001','nations-日本-genre-romance','あなたの視聴履歴から','CONTENT_BASED','USER_STATISTICS','SOUGOU','PERSONALIZED'
         """
         alt_dict = {}  # nations-日本-genre-romance:ALT000001
         alt_index = 1000  # TODO
@@ -299,19 +317,13 @@ class alt_reranker:
                 line_written = 0
                 while True:
                     line = r.readline()
+
                     if line:
                         arrs = line.rstrip().split(",")
-                        """
-                        print("arrs[2].split() = {} users".format(len(arrs[2].split("|"))))
-
-                        demo_users = [x for x in arrs[2].split("|") if x in tu]
-
-                        print("reranking... for {} users".format(len(demo_users)))
-
-                        if len(demo_users) == 0:
-                            logging.info("no target user for this alts")
-                            continue
-                        """
+                        if 1:  # counter%100==0:
+                            logging.info("{} ing, {} alt done with {} lines written".format(arrs[0],
+                                                                                              nb_genrealt_done,
+                                                                                              line_written))
 
                         alt_public_code = "ALT" + "0" * (6 - len(str(alt_index))) + str(alt_index)
                         alt_dict.setdefault(arrs[0], alt_public_code)
@@ -321,9 +333,9 @@ class alt_reranker:
                         alt_score_list = [float(s) for s in arrs[3].split("|")]
 
                         for i, (uid, reranked_list, _) in enumerate(
-                                rerank(model=self.model, target_users=set(arrs[2].split("|")),
-                                       target_items=set(arrs[1].split("|")), filter_already_liked_items=False,
-                                       batch_size=300)):
+                                rerank(model=self.model, target_users=arrs[2].split("|"),
+                                       target_items=arrs[1].split("|"), filter_already_liked_items=False,
+                                       batch_size=1000)):
 
                             # item filtering
                             reranked_list = [sid for sid in reranked_list
@@ -338,26 +350,16 @@ class alt_reranker:
                                                                       alt_score_list[i] + 3.0))  # TODO: for DEMO
                             line_written+=1
                         nb_genrealt_done += 1
-                        if 1:  # counter%100==0:
-                            logging.info("{} done, {} lines done with {} lines written".format(arrs[0],
-                                nb_genrealt_done, line_written))
-
-
                     else:
                         break
-
-        # write sql to insert rows in dim.alt
-        with open("genre_rows_insert.sql", 'w') as w:
-            w.write("insert into alt.dim_alt_r values\n")
+        # table for dim_alt_genre_row
+        with open("dim_alt_genre_rows.csv", 'w') as w:
+            today = pd.Timestamp.today().strftime("%Y-%m-%d")
+            w.write("alt_public_code,alt_type,alt_title,alt_description,main_genre_code,update_time\n")
             for i, (alt, alt_public_code) in enumerate(alt_dict.items()):
-                if i != len(alt_dict) - 1:
-                    w.write(
-                        "('{}','{}','あなたの視聴履歴から','CONTENT_BASED','USER_HISTORY','SOUGOU','PERSONALIZED',now()),\n".format(
-                            alt_public_code, alt))
-                else:
-                    w.write(
-                        "('{}','{}','あなたの視聴履歴から','CONTENT_BASED','USER_HISTORY','SOUGOU','PERSONALIZED',now())\n".format(
-                            alt_public_code, alt))
+                w.write(
+                    "{},genre_row,{},あなたの視聴履歴から,SOUGOU,{}\n".format(
+                        alt_public_code, alt, today))
 
     def output_for_cassandra(self, genre_dict, alt_code_lookup, output_path):
         with open(output_path, "a") as w:
@@ -424,7 +426,7 @@ def demo_last_similar_sakuhin():
                         print("{} not found".format(arrs[1]))
 
                     w_sql.write(
-                        "('{}','[{}]を見たあなたへ','ぜひご覧ください','CONTENT_BASED','USER_WATCHED','SOUGOU','PERSONALIZED',now()),\n".format(
+                        "'{}','[{}]を見たあなたへ','ぜひご覧ください','CONTENT_BASED','USER_WATCHED','SOUGOU','PERSONALIZED',now()),\n".format(
                             alt_public_code, arrs[2].replace("'", "")))
 
 
