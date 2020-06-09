@@ -511,8 +511,7 @@ class UserStatistics:
 
             return top_n_alt
 
-# TODO: issue of user_sessions.csv: nb of SID may be different to nb of watch_time e.g.  94-69
-# TODO: issue of user_seesions.csv: may have incomplete SID like 'S'
+
 def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_path="data/unext_sakuhin_meta_lookup.csv",
            user_sessions_path="data/user_sessions.csv",
            output_path="data/genre_rows.csv", nb_genre_row=3, nb_neco=30):
@@ -607,6 +606,7 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
         x = list(lookup[condition]['sakuhin_public_code'].unique())
         return x
 
+    # 4.
     nb_genre_row_written = 0
     with open(output_path, "w") as w:  # alt, sid list, uid list, score list
         for alt, lists in alt_dict.items():

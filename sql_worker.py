@@ -185,15 +185,15 @@ def get_sth_postegres():
 
 
 def get_sth_tidb():
-    # TODO how to use tidb_conn_string_safe
-    tidb_conn_string_safe = 'jdbc:mysql:loadbalance://10.232.201.18:3306,10.232.201.19:3306,10.232.201.20:3306/recodb?autoReconnect=false&loadBalanceStrategy=bestResponseTime'
-    tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'
-    task = "new_user_sessions_7days"
+    #tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'  # version 3
+    tidb_conn_string = 'mysql://reco:reco@10.232.201.39:3306/recodb?charset=utf8'  # version 4
+    task = "new_user_sessions_{}_days"
+    n_days = 7
 
     in_sql = get_filepath_content(str(Path("workspace/alt/personalized/{}.sql".format(task))))
     query = mysql(tidb_conn_string)
     preoperator = "set group_concat_max_len = 10240;"  # 4294967295
-    query.to_csv(in_sql, "data/{}.csv".format(task), True, preoperator=preoperator)
+    query.to_csv(in_sql.format(n_days), "data/{}.csv".format(task.format(n_days)), True, preoperator=preoperator)
 
 
 def push_2_dw():
