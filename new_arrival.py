@@ -10,7 +10,7 @@ two approaches
 * based on User Similarity
 * based on Tag Similarity
 
-3). popular new SIDs -> different implementation, do it later
+3). popular new SIDs -> different implementation, future project
 
 
 => mix 1, 2, 3 together
@@ -19,19 +19,15 @@ two approaches
 """
 
 import pandas as pd
-import numpy as np
 import pickle
 import os, sys, tempfile, logging, time
 import numpy as np
 import time
-import csv
 import operator
-from pathlib import Path
 from implicit.bpr import BayesianPersonalizedRanking
 from recoalgos.matrixfactor.bpr import BPRRecommender
 from scipy.sparse import coo_matrix
-from dstools.logging import setup_logging
-from dstools.utils import normalize_path, save_list_to_file, file_to_list
+
 
 
 logger = logging.getLogger(__name__)
@@ -104,7 +100,7 @@ def rerank_seen(model,
             yield model.user_item_matrix.id2user[uid], reranked_item_indexs, score_list
 
 
-def new_arrival_loader(input_path="data/new_arrival_EP_7_days.csv"):
+def new_arrival_ep_loader(input_path="data/new_arrival_EP_7_days.csv"):
     """
     :return: dict {sakuhin_public_code:episode_public_code}
     """
@@ -140,31 +136,38 @@ def user_session_reader(input_path="data/new_user_sessions_7_days.csv"):
 
 def new_ep_recommender(model_path):
     """
-    1004025 users are binge-watching sth
-    took 35623.121743917465  ~= 10 hrs
+    669933 users are binge-watching sth,
+    took 494s
 
-    :return: a dict {user_id:[SIDs with new ep]}
+    :return: a dict {user_id:{SIDA:scoreA, SIDB:scoreB, ...}
     """
     model = load_model(model_path)
-    new_arrival_sid_epc = new_arrival_loader()
+    new_arrival_sid_epc = new_arrival_ep_loader()
     user_session = user_session_reader()
 
+    logging.info(f"{len(new_arrival_sid_epc)} SIDs w/ new arrival EP")
+
     new_ep_reco = {}
-
-    for uid, sid_list, score_list in rerank_seen(model, None, None, True):
+    for i, (uid, sid_list, score_list) in enumerate(rerank_seen(model, None,
+                                                                target_items=list(new_arrival_sid_epc.keys()),
+                                                                batch_size=10000)):
+        if i%10000 == 0:
+            logging.info(f'progress: {float(i)/len(model.user_item_matrix.user2id)}')
         # get new EPs of user binge-watching sakuhins
-        user_interesting_new_eps = [(sid, new_arrival_sid_epc.get(sid)) for sid in sid_list if
-                                    new_arrival_sid_epc.get(sid, False)]
+
+        user_interesting_new_eps = [(sid, new_arrival_sid_epc.get(sid)) for sid in sid_list]
+                                    # if new_arrival_sid_epc.get(sid, False)]
+
         if user_interesting_new_eps:
-
-            # remove already watched EP
             watched_eps = user_session.get(uid, None)
-            if watched_eps:
+            if watched_eps:  # remove already watched EP
                 watched_eps = set(watched_eps)
-                new_ep_reco.setdefault(uid, [sid for sid, ep in user_interesting_new_eps if ep not in watched_eps])
+                new_ep_reco.setdefault(uid,
+                                       {sid:score.item() for (sid, ep), score in zip(user_interesting_new_eps, score_list)
+                                        if ep not in watched_eps})
+                # new_ep_reco.setdefault(uid, {'SIDs':[sid for sid, ep in user_interesting_new_eps if ep not in watched_eps]})
             else:
-                new_ep_reco.setdefault(uid, [sid for sid, ep in user_interesting_new_eps])
-
+                new_ep_reco.setdefault(uid, {sid:score.item() for sid, score in zip(sid_list, score_list)})
     logging.info(f"{len(new_ep_reco)} users are binge-watching sth")
     # TODO: same series reco
 
@@ -174,7 +177,7 @@ def new_ep_recommender(model_path):
 
 
 def reco_by_user_similarity(model_path,
-                            nb_similar_user=10000,
+                            nb_similar_user=100000,
                             new_arrival_SIDs_path="data/new_arrival_SID_7_days.csv",
                             new_user_session_path="data/new_user_sessions_7_days.csv"):
     """
@@ -182,6 +185,12 @@ def reco_by_user_similarity(model_path,
     142 new arrival SIDs -> 110 done / 32 sakuhins haven't been watched yet
     user coverage rate: 1767708/1900365 = 0.93
     took 185s ~= 6m
+
+    ========
+    nb_similar_user=100000
+    142 new arrival SIDs -> 110 done / 32 sakuhins haven't been watched yet
+    user coverage rate: 1900222/1900365 = 0.9999
+    took 1033.5094525814056
 
     :return: new_sid_reco {'PM023203146': {'SIDs': ['SID0048896',...], 'scores': [2.183024, ...]} }
     """
@@ -218,11 +227,11 @@ def reco_by_user_similarity(model_path,
                 break
 
     # make reco
-    new_sid_reco = {}
-    nb_nobody_wacth_sid = 0
+    new_arrival_reco = {}
+    nb_nobody_wacthed_sids = []
     for SID, watched_user_list in new_arrival_SIDs.items():
         if not watched_user_list:
-            nb_nobody_wacth_sid += 1
+            nb_nobody_wacthed_sids.append(SID)
             continue
 
         similar_users = {}  # user_index: similarity score
@@ -232,40 +241,55 @@ def reco_by_user_similarity(model_path,
                 # TODO: use the largest socre
                 similar_users.update({index: score for (index, score) in model.bpr_model.similar_users(u_index, nb_similar_user)})
 
-        # 186132: 2.8023417  ->  PM017329518:[ [SID0048732], [2.8023417] ]
+        # 186132: 2.8023417  ->  PM017329518:{ SID0048732:2.8023417 }
         for user_index, score in similar_users.items():
             user_id = id2user[user_index]
-            tmp = new_sid_reco.setdefault(user_id, {'SIDs':[], 'scores':[]})
-            tmp['SIDs'] = tmp['SIDs'] + [SID]
-            tmp['scores'] = tmp['scores'] + [score]
-            new_sid_reco[user_id] = tmp
+            if user_id in new_arrival_reco:
+                new_arrival_reco[user_id].update({SID:score})
+            else:
+                new_arrival_reco.setdefault(user_id, {SID:score})
 
-    logging.info(f" {len(new_arrival_SIDs) - nb_nobody_wacth_sid} done / {nb_nobody_wacth_sid} sakuhins haven't been watched yet")
-    logging.info(f"user coverage rate: {len(new_sid_reco)}/{len(model.user_item_matrix.user2id)} = "
-                 f"{float(len(new_sid_reco))/len(model.user_item_matrix.user2id)}")
-    return new_sid_reco
+    logging.info(f" {len(new_arrival_SIDs) - len(nb_nobody_wacthed_sids)} done / {len(nb_nobody_wacthed_sids)} sakuhins haven't been watched yet")
+    logging.info(f"user coverage rate: {len(new_arrival_reco)}/{len(model.user_item_matrix.user2id)} = "
+                 f"{float(len(new_arrival_reco))/len(model.user_item_matrix.user2id)}")
+
+    return new_arrival_reco, nb_nobody_wacthed_sids
+
+
+def video_domain(model_path):
+    start_time = time.time()
+    new_arrival_ep_reco = new_ep_recommender(model_path)
+    logging.info(f"took {time.time() - start_time}")
+
+    # user-similarity
+    start_time = time.time()
+    new_arrival_sid_reco, nb_nobody_wacthed_sids = reco_by_user_similarity(model_path)
+    logging.info(f"took {time.time() - start_time}")
+
+    logging.info("merge & rank by score")
+    with open("new_arrival_reco.csv", "w") as w:
+        for user_id in (set(new_arrival_ep_reco.keys()) | set(new_arrival_sid_reco.keys())):
+            # combine recommendations
+            sid_score_dict = {}
+            sid_score_dict.update(new_arrival_ep_reco.get(user_id, {}))
+            sid_score_dict.update(new_arrival_sid_reco.get(user_id, {}))
+            sid_list, score_list = [], []
+            for k,v in sorted(sid_score_dict.items(), key=operator.itemgetter(1), reverse=True):
+                sid_list.append(k)
+                score_list.append('{:.3f}'.format(v))
+            w.write(f'{user_id},{"|".join(sid_list)},{"|".join(score_list)}\n')
+
+    # TODO:popularity
 
 
 def make_alt(model_path, alt_public_code="ALT_new_arrival", alt_domain="SOUGOU"):
     logging.info(f"making {alt_public_code} on {alt_domain} using model:{model_path}")
-
-    #start_time = time.time()
-    # new_ep_reco = new_ep_recommender(model_path)
-    #logging.info(f"took {time.time() - start_time}")
-
-    # user-similarity
-    start_time = time.time()
-    new_sid_reco = reco_by_user_similarity(model_path)
-    logging.info(f"took {time.time() - start_time}")
-    # user preference
-    with open("new_arrival_reco.csv", "w") as w:
-        for user_id, sid_scores in new_sid_reco.items():
-            # TODO: rank SIDs by score
-            w.write(f"{user_id},{sid_scores['SIDs']},{sid_scores['scores']}\n")
-
-    # popularity
-
-
+    if alt_domain == "SOUGOU":
+        video_domain(model_path)
+    elif alt_domain == "book":
+        raise Exception("Not implemented yet")
+    else:
+        raise Exception("unknown ALT_domain")
 
 
 if __name__ == '__main__':
