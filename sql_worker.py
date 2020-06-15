@@ -60,7 +60,7 @@ def get_expire_soon():
 def get_alt_definition():
     in_sql = """
     select * from alt.dim_alt 
-    order by alt_public_code asc
+    order by ALT_code asc
     """
     query = PostgresQuery(dw_conn_string)
     query.to_csv(in_sql, "data/alt_definition.csv", True)
@@ -165,7 +165,7 @@ def demo_get_dim_table():
     """
     in_sql = """
     select
-    alt_public_code  as public_code,
+    ALT_code  as public_code,
     alt_name as title,
     alt_description as description
     from alt.dim_alt da

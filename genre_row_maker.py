@@ -8,14 +8,9 @@ from mappings import types, tpye_mapping, genres_mapping, tags
 
 logger = logging.getLogger(__name__)
 
-config = {
-    "nb_alt":5,
-    "min_sakuhin_in_alt":30
-}
 
-
-UNEXT_ANALYTICS_DW_PROD = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw"
-engine = create_engine(UNEXT_ANALYTICS_DW_PROD)
+#UNEXT_ANALYTICS_DW_PROD = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw"
+#engine = create_engine(UNEXT_ANALYTICS_DW_PROD)
 
 
 sql_metatable = """
@@ -196,121 +191,6 @@ class VideoFeatures:  # sakuhin_dict{sakuhin_public_code: VideoFeatures}
         logging.info("nations = ", self.nations)
         logging.info("genre = ", self.genre)
         logging.info("tags = ", self.tags)
-
-
-class UserStatistics_v1:
-    def __init__(self, uid, sakuhin_dict, lookup):
-        self.uid = uid
-        self.sakuhin_dict = sakuhin_dict
-        self.lookup = lookup
-        self.types = {}  # movie:24 sec
-        self.nations = {}  # japan:24 sec
-        self.genre = {}  # action:24 sec
-        self.tags = {}  # sf:24 sec
-
-    def add(self, sid, playback_time):  # add one record ex: 14736, 30
-        # sakuhin_dict[sid] get VideoFeatures object
-        # add VideoFeatures.type to self.types, and others so on
-        sid = str(sid)
-
-        sakuhin = self.sakuhin_dict.get("SID" + "0" * (7 - len(sid)) + sid, None)
-        if not sakuhin:
-            print('can not find {}'.format("SID" + "0" * (7 - len(sid)) + sid))
-            return
-
-        if sakuhin.type:
-            self.types[sakuhin.type] = self.types.setdefault(sakuhin.type, 0) + int(playback_time)
-        if sakuhin.genre:
-            self.genre[sakuhin.genre] = self.genre.setdefault(sakuhin.genre, 0) + int(playback_time)
-        for nation in sakuhin.nations:
-            self.nations[nation] = self.nations.setdefault(nation, 0) + int(playback_time)
-        for tag in sakuhin.tags:
-            self.tags[tag] = self.tags.setdefault(tag, 0) + int(playback_time)
-
-    def info(self):
-        print("types = {}".format(self.types))
-        print("nations = {}".format(self.nations))
-        print("genre = {}".format(self.genre))
-        print("tags = {}".format(self.tags))
-
-    def rank_info(self):  # rank all features, return list of (watch_length, region, America)
-        # TODO: can be comprehension
-        rank_dict = self.types.copy()
-        rank_dict.update(self.nations)
-        rank_dict.update(self.genre)
-        rank_dict.update(self.tags)
-        for k, v in sorted(rank_dict.items(), key=operator.itemgetter(1), reverse=True):
-            print("[{}] {:.4f}".format(k, v))
-
-    def do_normalization(self, d):  # normalize playback_time to %
-        if not d or sum(d.values()) == 0:
-            return None
-        factor = 1.0 / sum(d.values())
-        for k in d:
-            d[k] = d[k] * factor
-        return 1
-
-    def normalization_info(self):
-        if self.types:
-            self.do_normalization(self.types)
-        if self.nations:
-            self.do_normalization(self.nations)
-        if self.genre:
-            self.do_normalization(self.genre)
-        if self.tags:
-            self.do_normalization(self.tags)
-
-    def make_alt(self):
-        alt_dict = {}  # "_-_":score
-
-        # logic: type x nation (Anime x Japan)
-        for type_k, type_v in self.types.items():
-            for nations_k, nations_v in self.nations.items():
-                alt_dict["{}-{}-{}-{}".format("type", type_k, "nations", nations_k)] = type_v * nations_v
-
-        # logic: type x genre (Anime x romance)
-        for type_k, type_v in self.types.items():
-            for genre_k, genre_v in self.genre.items():
-                alt_dict["{}-{}-{}-{}".format("type", type_k, "genre", genre_k)] = type_v * genre_v
-
-        # logic: genre x nations_v (romance x Japan)
-        for nations_k, nations_v in self.nations.items():
-            for genre_k, genre_v in self.genre.items():
-                alt_dict["{}-{}-{}-{}".format("nations", nations_k, "genre", genre_k)] = nations_v * genre_v
-
-        # logic: tag  x type (特撮・ヒーロー x drama)
-        for type_k, type_v in self.types.items():
-            for tag_k, tag_v in self.tags.items():
-                alt_dict["{}-{}-{}-{}".format("type", type_k, "tag", tag_k)] = type_v * tag_v
-
-        # normalize playback time
-        if not self.do_normalization(alt_dict):
-            print("user:{} has no alt made".format(self.uid))
-            return
-
-        # do output here
-        with open('auto_alts.csv', "a") as w:
-            # uid,title,score,sid_list
-            for i, (k, v) in enumerate(sorted(alt_dict.items(), key=operator.itemgetter(1), reverse=True)):
-                if i == config["nb_alt"]:
-                    break
-                terms = k.split("-")
-                condition = (self.lookup[terms[0]] == terms[1]) & (self.lookup[terms[2]] == terms[3])
-
-                sid_list = self.do_query(condition)
-                if len(sid_list) < config["min_sakuhin_in_alt"]:
-                    continue
-                # print("{}-th {} {:.5f} nb:{}".format(i + 1, k, v, len(sid_list)))
-                w.write("{},{},{:.5f},{}\n".format(self.uid, k, v, "|".join(sid_list)))
-
-        # for type_k, type_v in self.types.items():
-        #    for nations_k, nations_v in self.nations.items():
-        #        for genre_k, genre_v in self.genre.items():
-        #            for tag_k, tag_v in self.tags.items():
-
-    def do_query(self, condition):
-        x = list(self.lookup[condition]['sakuhin_public_code'].unique())
-        return x
 
 
 class UserStatistics_v2:
@@ -512,9 +392,12 @@ class UserStatistics:
             return top_n_alt
 
 
-def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_path="data/unext_sakuhin_meta_lookup.csv",
-           user_sessions_path="data/user_sessions.csv",
-           output_path="data/genre_rows.csv", nb_genre_row=3, nb_neco=30):
+
+def video_all_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
+                         unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv",
+                         meta_lookup_path="data/unext_sakuhin_meta_lookup.csv",
+                         user_sessions_path="data/user_sessions.csv",
+                         output_path="data/genre_rows.csv"):
     """
 
     :param unext_sakuhin_meta_path:
@@ -533,8 +416,8 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
         while True:
             line = r.readline()
             if line:
-                arrs = line.rstrip().split(",")
-                sakuhin_dict[arrs[0]] = VideoFeatures(arrs)
+                arr = line.rstrip().split(",")
+                sakuhin_dict[arr[0]] = VideoFeatures(arr)
             else:
                 break
 
@@ -571,29 +454,26 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
         while True:
             line = r.readline()
             if line:
-                arrs = line.rstrip().replace('"', '').split(',')
-                sid_list, watch_time_list = [], []
-                for v in arrs[1:]:
-                    if "SID" in v:
-                        sid_list.append(v)
-                    else:
-                        watch_time_list.append(v)
+                arr = line.rstrip().replace('"', '').split(',')
+                nb = len(arr) - 1
+                sid_list = arr[1:1 + int(nb / 3)]
+                watch_time_list = arr[1 + int(nb/3)*2:]
                 assert len(sid_list) == len(watch_time_list), "fail@{} line, user:{},  {} - {}".format(
-                    line, arrs[0], len(sid_list), len(watch_time_list))
+                    line, arr[0], len(sid_list), len(watch_time_list))
 
-                stat = UserStatistics(arrs[0], sakuhin_dict)
+                stat = UserStatistics(arr[0], sakuhin_dict)
 
                 # add every session to user's statistics
                 for sid, watch_time in zip(sid_list,  watch_time_list):
                     stat.add(sid, watch_time)
 
                 # get top N favorite genre rows
-                user_alts = stat.make_alt(top_n=nb_genre_row)
+                user_alts = stat.make_alt(top_n=nb_alt)
 
                 if user_alts:
                     for alt, score in user_alts.items():
                         alt_dict.setdefault(alt, [[], []])
-                        alt_dict[alt][0].append(arrs[0])
+                        alt_dict[alt][0].append(arr[0])
                         alt_dict[alt][1].append(score)
 
                 if counter%1000==0:
@@ -616,7 +496,7 @@ def worker(unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv", meta_lookup_pa
                     print("{} is not str".format(x))
             condition = (lookup[terms[0]] == terms[1]) & (lookup[terms[2]] == terms[3])
             query_sid_list = do_query(condition)
-            if len(query_sid_list) < nb_neco:
+            if len(query_sid_list) < min_nb_reco:
                 continue
             w.write("{},{},{},{}\n".format(alt, "|".join(query_sid_list),
                                            "|".join([str(x) for x in lists[0]]),
@@ -644,7 +524,19 @@ def user_session_data_checker(user_sessions_path="data/user_sessions.csv"):
                 counter += 1
             else:
                 break
-    print("check done, no problem")
+    logging.info("check done, no problem")
+
+
+def make_alt(ALT_code, ALT_domain, nb_alt, max_nb_reco, min_nb_reco,
+             unext_sakuhin_meta_path, meta_lookup_path, user_sessions_path):
+    if ALT_domain == "video_all":
+        video_all_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
+                             unext_sakuhin_meta_path, meta_lookup_path,
+                             user_sessions_path, output_path="data/genre_rows.csv")
+    elif ALT_domain == "book_all":
+        raise Exception("Not implemented yet")
+    else:
+        raise Exception("unknown ALT_domain")
 
 
 def main():

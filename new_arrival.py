@@ -100,7 +100,7 @@ def rerank_seen(model,
             yield model.user_item_matrix.id2user[uid], reranked_item_indexs, score_list
 
 
-def new_arrival_ep_loader(input_path="data/new_arrival_EP_7_days.csv"):
+def new_arrival_ep_loader(input_path="data/new_arrival_EP.csv"):
     """
     :return: dict {sakuhin_public_code:episode_public_code}
     """
@@ -111,7 +111,7 @@ def new_arrival_ep_loader(input_path="data/new_arrival_EP_7_days.csv"):
 
 
 # past N days is corresponding to past N days of new_arrival_EP.csv
-def user_session_reader(input_path="data/new_user_sessions_7_days.csv"):
+def user_session_reader(input_path="data/new_user_sessions.csv"):
     """
     input format:
     "user_id", "SIDs..." , "episode_public_codes...", "watch times"
@@ -178,8 +178,8 @@ def new_ep_recommender(model_path):
 
 def reco_by_user_similarity(model_path,
                             nb_similar_user=100000,
-                            new_arrival_SIDs_path="data/new_arrival_SID_7_days.csv",
-                            new_user_session_path="data/new_user_sessions_7_days.csv"):
+                            new_arrival_SIDs_path="data/new_arrival_SID.csv",
+                            new_user_session_path="data/new_user_sessions.csv"):
     """
     nb_similar_user=10000
     142 new arrival SIDs -> 110 done / 32 sakuhins haven't been watched yet
@@ -256,7 +256,7 @@ def reco_by_user_similarity(model_path,
     return new_arrival_reco, nb_nobody_wacthed_sids
 
 
-def video_domain(model_path):
+def video_domain(model_path, output_name):
     start_time = time.time()
     new_arrival_ep_reco = new_ep_recommender(model_path)
     logging.info(f"took {time.time() - start_time}")
@@ -267,7 +267,7 @@ def video_domain(model_path):
     logging.info(f"took {time.time() - start_time}")
 
     logging.info("merge & rank by score")
-    with open("new_arrival_reco.csv", "w") as w:
+    with open(output_name, "w") as w:  # TODO: new_arrival_reco
         for user_id in (set(new_arrival_ep_reco.keys()) | set(new_arrival_sid_reco.keys())):
             # combine recommendations
             sid_score_dict = {}
@@ -277,16 +277,16 @@ def video_domain(model_path):
             for k,v in sorted(sid_score_dict.items(), key=operator.itemgetter(1), reverse=True):
                 sid_list.append(k)
                 score_list.append('{:.3f}'.format(v))
-            w.write(f'{user_id},{"|".join(sid_list)},{"|".join(score_list)}\n')
+            w.write(f'{user_id},{"|".join(sid_list)},1.0\n')
 
     # TODO:popularity
 
 
-def make_alt(model_path, alt_public_code="ALT_new_arrival", alt_domain="SOUGOU"):
-    logging.info(f"making {alt_public_code} on {alt_domain} using model:{model_path}")
-    if alt_domain == "SOUGOU":
-        video_domain(model_path)
-    elif alt_domain == "book":
+def make_alt(model_path, ALT_code="ALT_new_arrival", ALT_domain="video_all"):
+    logging.info(f"making {ALT_code} on {ALT_domain} using model:{model_path}")
+    if ALT_domain == "video_all":
+        video_domain(model_path, output_name=f"{ALT_code}-{ALT_domain}.csv")
+    elif ALT_domain == "book":
         raise Exception("Not implemented yet")
     else:
         raise Exception("unknown ALT_domain")

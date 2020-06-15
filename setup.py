@@ -43,7 +43,9 @@ if __name__ == '__main__':
         ],
         namespace_packages = [],
         py_modules = [
+            'altmaker',
             'alt_reranker',
+            'new_arrival'
         ],
         classifiers = [
             'Development Status :: 3 - Alpha',

@@ -1,15 +1,15 @@
 """alt_reranker
 
 Usage:
-    alt_reranker.py (new_arrival) --model=PATH <alt_public_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
-    alt_reranker.py top <alt_public_code> <alt_genre> --target_users=PATH
+    alt_reranker.py (new_arrival) --model=PATH <ALT_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
+    alt_reranker.py top <ALT_code> <alt_genre> --target_users=PATH
 
 Options:
     -h --help Show this screen
     --version
     --model PATH         File path location of the trained model
     --top_n=<tn>         Number of recommended items. [default: 10]
-    alt_public_code      detail@dim_alt
+    ALT_code      detail@dim_alt
     alt_genre            SOUGOU for main page, genre name for each genre
 
 
@@ -45,33 +45,43 @@ def read_target_user(input_path):
 
 class alt_reranker:
     """
+    kwargs = {
+            "model_path": arguments["--model"],
+            "target_users_path": arguments.get("--target_users", None),
+            "target_items_path": arguments.get("--target_items", None),
+            "filter_items": arguments.get("--filter_items", None),
+            "watched_list_rerank": arguments.get("--watched_list", None),
+            "max_nb_reco": int(arguments["--max_nb_reco"]),
+            "min_nb_reco": int(arguments["--min_nb_reco"]),
+        }
     """
 
-    def __init__(self, opts):
+    def __init__(self, model_path, target_users_path, target_items_path, filter_items, watched_list_rerank,
+                 max_nb_reco, min_nb_reco):
         os.makedirs("./data", exist_ok=True)
-        self.model_path = normalize_path(opts.get("model"), error_if_not_exist=True)
+        self.model_path = normalize_path(model_path, error_if_not_exist=True)
         self.model = load_model(self.model_path)
-        self.out_path = normalize_path(opts.get("out"))
+        # self.out_path = normalize_path(opts.get("out"))
         # a list of target userid(ex: PM015212809); None = all users
-        self.target_users_path = normalize_path(opts.get("target_users", None))
+        self.target_users_path = normalize_path(target_users_path)
         # a list of target itemid(ex: SID0041816); None = all items
-        self.target_items_path = normalize_path(opts.get("target_items", None))
-        self.filter_items_path = normalize_path(opts.get("filter_items", None))
-        self.watched_list_rerank_path = normalize_path(opts.get("watched_list_rerank", None))
-        self.series_rel_path = normalize_path(opts.get("series_rel", None))
-        self.nb_reco = int(opts.get("nb_reco", 30))
+        self.target_items_path = normalize_path(target_items_path)
+        self.filter_items_path = normalize_path(filter_items)
+        self.watched_list_rerank_path = normalize_path(watched_list_rerank)
+        # self.series_rel_path = normalize_path(opts.get("series_rel", None))
+        self.max_nb_reco = max_nb_reco
+        self.min_nb_reco = min_nb_reco
 
         # TODO consider make self.target_users as set
-        _, self.target_users, _ = read_target_user(self.target_users_path)
-        #file_to_list(
-        #    self.target_users_path) if self.target_users_path is not None else self.model.user_item_matrix.user2id
-
+        # _, self.target_users, _ = read_target_user(self.target_users_path)
+        self.target_users = file_to_list(self.target_users_path) if self.target_users_path is not None else self.model.user_item_matrix.user2id
         self.target_items = file_to_list(self.target_items_path) if self.target_items_path is not None else None
+
         logging.info("using model for {} users and {} items".format(
             len(self.target_users) if self.target_users else len(self.model.user_item_matrix.user2id),
             len(self.target_items) if self.target_items else len(self.model.user_item_matrix.item2id)
         ))
-        # TODO:set
+
         self.filter_items = file_to_list(self.filter_items_path) if self.filter_items_path is not None else {}
 
         self.dict_watched_sakuhin = {}
@@ -82,14 +92,16 @@ class alt_reranker:
                 self.dict_watched_sakuhin[userid] = sids.split("|")
             del list_watched
 
+        """
         self.series_dict = {}
         if self.series_rel_path:
             series_df = pd.read_csv(self.series_rel_path)
             for row in series_df.iterrows():
                 self.series_dict[row[1]["sakuhin_public_code"]] = row[1]["series_id"]
             del series_df
+        """
 
-    def new_arrival(self, alt_public_code="ALT000001", alt_genre="SOUGOU",
+    def new_arrival(self, ALT_code="ALT000001", alt_genre="SOUGOU",
                     input_path="data/new_arrival.csv", output_path="new_arrival_reranked.csv",
                     ):
         """
@@ -111,7 +123,7 @@ class alt_reranker:
         logging.info("{} of new-arrival items as target items loaded".format(len(target_items)))
 
         with open(output_path, "w") as w:
-            w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
+            w.write("user_multi_account_id,ALT_code,alt_genre,sakuhin_codes,alt_score\n")
             for i, (uid, reranked_list, score_list) in enumerate(
                     rerank(model=self.model, target_users=self.target_users,
                            target_items=target_items, filter_already_liked_items=False)):
@@ -134,7 +146,7 @@ class alt_reranker:
                 reranked_list = reranked_list[:self.nb_reco]
                 score_list = score_list[:self.nb_reco]
 
-                w.write("{},{},{},{},{:.4f}\n".format(uid, alt_public_code, alt_genre, "|".join(reranked_list),
+                w.write("{},{},{},{},{:.4f}\n".format(uid, ALT_code, alt_genre, "|".join(reranked_list),
                                                       sum(score_list) / float(len(score_list))))
 
     def new_arrival_by_genre(self):
@@ -299,19 +311,16 @@ class alt_reranker:
         """
         run reranking on genre_alts for personalization
 
-        input: alt, sid list, uid list, score list
+        input:
+        genre_features, sid list, uid list, score list
+        type-DRAMA-genre-romance, SID|SID|..., user_nulti_account_id|..., score|score|...
+
 
         [for starship]
-        output: user_nulti_account_id, alt_public_code, alt_genre(always SOUGOU), sakuhin_codes, alt_score
+        user_multi_account_id,genre_features,SID|SID|...  ,score|score|...
 
-        [for csv to dim_alt]
-        output:
         """
-        alt_dict = {}  # nations-日本-genre-romance:ALT000001
-        alt_index = 1000  # TODO
-
         with open(output_path, "w") as w:
-            w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
             with open(input_path, "r") as r:
                 nb_genrealt_done=0
                 line_written = 0
@@ -321,15 +330,10 @@ class alt_reranker:
                     if line:
                         arrs = line.rstrip().split(",")
                         if 1:  # counter%100==0:
-                            logging.info("{} ing, {} alt done with {} lines written".format(arrs[0],
-                                                                                              nb_genrealt_done,
-                                                                                              line_written))
-
-                        alt_public_code = "ALT" + "0" * (6 - len(str(alt_index))) + str(alt_index)
-                        alt_dict.setdefault(arrs[0], alt_public_code)
-                        alt_index += 1
+                            logging.info(f"{arrs[0]} ing, {nb_genrealt_done} alt done with {line_written} lines written")
 
                         # this score is feature score from user history statistics, use it instead of bpr score
+                        # TODO: score = statistics + bpr_score
                         alt_score_list = [float(s) for s in arrs[3].split("|")]
 
                         for i, (uid, reranked_list, _) in enumerate(
@@ -342,30 +346,32 @@ class alt_reranker:
                                              if sid not in set(self.filter_items) and
                                              sid not in set(self.dict_watched_sakuhin.get(uid, []))]
 
-                            if len(reranked_list) < self.nb_reco:
+                            if len(reranked_list) < self.min_nb_reco:
                                 continue
 
-                            w.write("{},{},SOUGOU,{},{:.4f}\n".format(uid, alt_public_code,
-                                                                      "|".join(reranked_list[:self.nb_reco]),
-                                                                      alt_score_list[i] + 3.0))  # TODO: for DEMO
+                            w.write("{},{},{},{:.4f}\n".format(uid, arrs[0],
+                                                               "|".join(reranked_list[:self.max_nb_reco]), alt_score_list[i]))
                             line_written+=1
                         nb_genrealt_done += 1
                     else:
                         break
-        # table for dim_alt_genre_row
+
+        # table for dim_alt_genre_row  TODO: do we need this?
+        """
         with open("dim_alt_genre_rows.csv", 'w') as w:
             today = pd.Timestamp.today().strftime("%Y-%m-%d")
-            w.write("alt_public_code,alt_type,alt_title,alt_description,main_genre_code,update_time\n")
-            for i, (alt, alt_public_code) in enumerate(alt_dict.items()):
+            w.write("ALT_code,alt_type,alt_title,alt_description,main_genre_code,update_time\n")
+            for i, (alt, ALT_code) in enumerate(alt_dict.items()):
                 w.write(
                     "{},genre_row,{},あなたの視聴履歴から,SOUGOU,{}\n".format(
-                        alt_public_code, alt, today))
+                        ALT_code, alt, today))
+        """
 
     def output_for_cassandra(self, genre_dict, alt_code_lookup, output_path):
         with open(output_path, "a") as w:
-            w.write("user_multi_account_id,alt_public_code,alt_genre,sakuhin_codes,alt_score\n")
+            w.write("user_multi_account_id,ALT_code,alt_genre,sakuhin_codes,alt_score\n")
             for alt_genre, target_items in genre_dict.items():
-                alt_public_code = alt_code_lookup[alt_genre]
+                ALT_code = alt_code_lookup[alt_genre]
                 for i, (uid, reranked_list, score_list) in enumerate(
                         rerank(model=self.model, target_users=self.target_users,
                                target_items=target_items,
@@ -383,15 +389,15 @@ class alt_reranker:
                     reranked_list = [sid for (sid, score) in reranked_tuple]
                     score_list = [score for (sid, score) in reranked_tuple]
 
-                    if len(reranked_list) < self.nb_reco:
+                    if len(reranked_list) < self.min_nb_reco:
                         logging.info("[{}] WARNING {} is too few {}".format(alt_genre, uid, len(reranked_list)))
                         continue
 
-                    reranked_list = reranked_list[:self.nb_reco]
-                    score_list = score_list[:self.nb_reco]
+                    reranked_list = reranked_list[:self.max_nb_reco]
+                    score_list = score_list[:self.max_nb_reco]
 
                     w.write(
-                        "{},{},{},{},{:.4f}\n".format(uid, alt_public_code, alt_genre, "|".join(reranked_list),
+                        "{},{},{},{},{:.4f}\n".format(uid, ALT_code, alt_genre, "|".join(reranked_list),
                                                       sum(score_list) / float(len(score_list))))
 
 
@@ -418,16 +424,16 @@ def demo_last_similar_sakuhin():
                 for line in r.readlines():
                     arrs = line.rstrip().split(",")
                     uid = arrs[0]
-                    alt_public_code = "ALT{}".format(uid)
+                    ALT_code = "ALT{}".format(uid)
                     sakuhin_codes = cbf_dict.get(arrs[1], None)
                     if sakuhin_codes:
-                        w_cass.write("{},{},SOUGOU,{},{:.1f}\n".format(uid, alt_public_code, cbf_dict[arrs[1]], 10))
+                        w_cass.write("{},{},SOUGOU,{},{:.1f}\n".format(uid, ALT_code, cbf_dict[arrs[1]], 10))
                     else:
                         print("{} not found".format(arrs[1]))
 
                     w_sql.write(
                         "'{}','[{}]を見たあなたへ','ぜひご覧ください','CONTENT_BASED','USER_WATCHED','SOUGOU','PERSONALIZED',now()),\n".format(
-                            alt_public_code, arrs[2].replace("'", "")))
+                            ALT_code, arrs[2].replace("'", "")))
 
 
 config = {

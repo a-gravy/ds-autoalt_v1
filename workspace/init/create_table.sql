@@ -86,7 +86,7 @@ inner join alt.dim_menu_category using(menu_public_code)
 
 
 create table alt.dim_alt_category (
-  alt_public_code varchar,
+  ALT_code varchar,
   main_genre_code varchar,
   category_name varchar
 )
@@ -154,7 +154,7 @@ insert into alt.dim_alt_category values
 
 create table alt.dim_alt
 (
-  alt_public_code varchar,
+  ALT_code varchar,
   alt_name varchar,
   alt_description varchar,
   alt_type varchar,
