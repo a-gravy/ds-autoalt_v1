@@ -29,7 +29,7 @@ def new_user_session_reader(input_path="data/new_user_sessions.csv"):
     return userid_list, sid_list
 
 
-def video_byw(ALT_code, ALT_domain, filter_items=None, watched_list_rerank=None, min_nb_reco=4,
+def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=None, min_nb_reco=4,
              user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/cbf_integration.csv"):
     """
     video-video similarity for because you watched(BYW)
@@ -52,12 +52,12 @@ def video_byw(ALT_code, ALT_domain, filter_items=None, watched_list_rerank=None,
                 break
 
     # read userid & sids
-    userid_list, sid_list = new_user_session_reader(input_path="data/new_user_sessions.csv")
+    userid_list, sid_list = new_user_session_reader(input_path=user_sessions_path)
 
     # read filtering items
     filter_items = []
     if filter_items:
-        filter_items = file_to_list(filter_items)
+        filter_items = file_to_list(filter_items_path)
     dict_watched_sakuhin = {}
     if watched_list_rerank:
         list_watched = file_to_list(watched_list_rerank)

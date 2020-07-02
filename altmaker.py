@@ -31,15 +31,12 @@ format:
 * no head
 * user_multi_account_id,SID|SID|...  , alt_score
 * byw: user_multi_account_id,byw_sid,SID|SID|...  ,alt_score
-
-TODO:
-* alt_score is necessary for byw, genre_row
+* genre: user_multi_account_id,type-VARIETY-nations-日本,SID|SID|...,alt_score(from genre, not bpr)
 
 """
 import os, logging
 from docopt import docopt
 from dstools.logging import setup_logging
-from dstools.cli.parser import parse
 import alt_reranker
 from new_arrival import make_alt as new_arrival_maker
 from because_you_watched import make_alt as byw_maker
@@ -83,6 +80,7 @@ def main():
         daily_top(top_N=int(arguments['--top_n']), input_path="data/daily_top.csv",
                   ALT_code=arguments["<ALT_code>"], ALT_domain=arguments["<ALT_domain>"])
     elif arguments['byw']:
+        # python altmaker.py byw ALT_byw video_all --filter_items data/filter_out_sakuhin_implicit.csv --watched_list data/watched_list_rerank.csv --min_nb_reco 4
         kwargs = {
             "ALT_code": arguments["<ALT_code>"],
             "ALT_domain": arguments["<ALT_domain>"],
@@ -94,6 +92,7 @@ def main():
         }
         byw_maker(**kwargs)
     elif arguments['genre_row']:
+        # python altmaker.py genre_row ALT_genrerow video_all --model ../data/bpr/implicit_bpr.model.2020-06-06 --target_users data/target_users.csv
         kwargs = {
             "ALT_code": arguments["<ALT_code>"],
             "ALT_domain": arguments["<ALT_domain>"],
