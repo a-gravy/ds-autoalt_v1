@@ -13,7 +13,6 @@ def new_user_session_reader(input_path="data/new_user_sessions.csv"):
 
     :return: a dict {user_id: { SID: episode_public_codes}}
     """
-    userid_list, sid_list = [], []
     with open(input_path, "r") as r:
         r.readline()
         while True:
@@ -22,11 +21,9 @@ def new_user_session_reader(input_path="data/new_user_sessions.csv"):
                 arr = line.rstrip().replace('"', '').split(",")
                 nb = len(arr) - 1
                 SIDs = arr[1:1 + int(nb / 3)]
-                userid_list.append(arr[0])
-                sid_list.append(SIDs[-1])  # TODO: currently for lastest one only
+                yield arr[0], list(set(SIDs))
             else:
                 break
-    return userid_list, sid_list
 
 
 def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=None, min_nb_reco=4,
@@ -34,11 +31,16 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
     """
     video-video similarity for because you watched(BYW)
 
-    1st version: simplest logic, only for latest watched sakuhin
+    current logic:
+    get all SIDs from user watch history
+    ->  remove SIDs whose cbf_list is similar to others
 
-    :param user_sessions_path: userid, sids, watched_time
+    output: one line for one byw_sid, user may have several lines for each SID he watched
+    user_multi_account_id,byw_sid,sakuhin_codes,alt_score
+    user_multi_account_id,byw_sid,sakuhin_codes,alt_score
+
+
     :param cbf_table_path: sakuhin_public_code, rs_list
-    :return:
     """
     # read content-based filtering recommendation
     cbf_dict = {}
@@ -50,9 +52,6 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
                 cbf_dict.setdefault(arrs[0], arrs[1])
             else:
                 break
-
-    # read userid & sids
-    userid_list, sid_list = new_user_session_reader(input_path=user_sessions_path)
 
     # read filtering items
     filter_items = []
@@ -66,20 +65,47 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
             dict_watched_sakuhin[userid] = sids.split("|")
         del list_watched
 
-    logging.info("making because_you_watched rows for {} new session users".format(len(userid_list)))
+    logging.info("making because_you_watched rows for new session users")
     with open(f'{ALT_code}-{ALT_domain}.csv', "w") as w:
-        for userid, session_sid in zip(userid_list, sid_list):
-            rs_list = cbf_dict.get(session_sid, None)
+        # read userid & sids
+        for userid, session_sids in new_user_session_reader(input_path=user_sessions_path):
+            # to record which session_sids are alive after removing similar SIDs.  SIDs:session_id
+            session_dict = {cbf_dict[session_sid]:session_sid for session_sid in session_sids if cbf_dict.get(session_sid, None)}
+            cbf_rs_lists = [k.split("|") for k, v in session_dict.items()]
 
-            if rs_list:
+            # check the similarity between cbf_rs_lists of SIDs
+            similar_threshold = 0.5
+            to_del = []
+            while True:
+                if len(cbf_rs_lists) <= 1:
+                    break
+
+                for i in range(len(cbf_rs_lists)-1):
+                    for j in range(i+1, len(cbf_rs_lists)):
+                        sa = set(cbf_rs_lists[i])
+                        sb = set(cbf_rs_lists[j])
+                        if max(len(sa & sb)/len(sa), len(sa & sb)/len(sb)) > similar_threshold:
+                            to_del.append(cbf_rs_lists[j])
+                    if to_del:
+                        break
+                else:
+                    break
+
+                if to_del:
+                    for e in to_del:
+                        cbf_rs_lists.remove(e)
+                        del session_dict["|".join(e)]
+                    print(f"{userid} has some similar SIDs")
+                    to_del = []
+
+            for SIDs, session_SID in session_dict.items():
                 # do filtering
-                arrs = [sid for sid in rs_list.split("|") if sid not in set(filter_items) and
-                                             sid not in set(dict_watched_sakuhin.get(userid, []))]
-
-                # TODO: current order is based on cbf scores, we can mix cbf score with user bpr score
+                arrs = [sid for sid in SIDs.split("|") if sid not in set(filter_items) and
+                        sid not in set(dict_watched_sakuhin.get(userid, []))]
+                # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
                 if len(arrs) >= min_nb_reco:
                     # user_multi_account_id,byw_sid,sakuhin_codes,alt_score
-                    w.write('{},{},{},{:.4f}\n'.format(userid, session_sid, "|".join(arrs), 1.0))
+                    w.write('{},{},{},{:.4f}\n'.format(userid, session_SID, "|".join(arrs), 1.0))
             else:
                 pass
 
