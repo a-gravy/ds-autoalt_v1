@@ -34,7 +34,7 @@ format:
 * genre: user_multi_account_id,type-VARIETY-nations-日本,SID|SID|...,alt_score(from genre, not bpr)
 
 """
-import os, logging
+import os, logging, time
 from docopt import docopt
 from dstools.logging import setup_logging
 import alt_reranker
@@ -71,6 +71,8 @@ def daily_top(top_N = 10, ALT_code="ATL_daily_top", ALT_domain="video_all",
 def main():
     arguments = docopt(__doc__, version='0.9.0')
     logging.info(arguments)
+
+    start_time = time.time()
 
     if arguments['new_arrival']:
         new_arrival_maker(arguments['--model'], ALT_code=arguments["<ALT_code>"], ALT_domain=arguments["<ALT_domain>"])
@@ -117,6 +119,7 @@ def main():
         alt_reranker.alt_reranker(**kwargs).genre_rows(input_path="data/genre_rows.csv",
                                                        output_path=f'{arguments["<ALT_code>"]}-{arguments["<ALT_domain>"]}.csv')
 
+    logging.info(f"execution time = {time.time() - start_time}")
 
 if __name__ == '__main__':
     main()
