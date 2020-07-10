@@ -69,9 +69,9 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
     with open(f'{ALT_code}-{ALT_domain}.csv', "w") as w:
         # read userid & sids
         for line_counter, (userid, session_sids) in enumerate(new_user_session_reader(input_path=user_sessions_path)):
-            if line_counter%10001 == 1:
+            if line_counter%10000 == 1:
                 logging.info(f"{line_counter} lines done")
-                
+
             # to record which session_sids are alive after removing similar SIDs.  SIDs:session_id
             session_dict = {cbf_dict[session_sid]:session_sid for session_sid in session_sids if cbf_dict.get(session_sid, None)}
             cbf_rs_lists = [k.split("|") for k, v in session_dict.items()]

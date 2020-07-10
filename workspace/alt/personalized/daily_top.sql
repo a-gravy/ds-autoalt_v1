@@ -1,8 +1,12 @@
 select
-  sakuhin_public_code,
-  total_time_watched
-from agg_content_evaluation
-where dt >= now() - interval '2 day'  -- since currently we use yesterday
-and sakuhin_public_code like 'SID%'
-order by total_time_watched desc
-limit 30
+    sess.episode_code,
+    group_concat(DISTINCT sakuhin.SAKUHIN_PUBLIC_CODE) as SID,
+    COUNT(DISTINCT sess.userid) as nb_watch
+from recodb.fues_dim_user_playback_session sess
+         inner join cmsdb.episode ep on sess.episode_code = ep.EPISODE_PUBLIC_CODE
+         inner join cmsdb.sakuhin sakuhin on ep.SAKUHIN_ID = sakuhin.SAKUHIN_ID
+where sess.windowstart > now() - interval 1 day
+  and sess.windowlength > 2
+group by sess.episode_code
+order by nb_watch desc
+limit 300;

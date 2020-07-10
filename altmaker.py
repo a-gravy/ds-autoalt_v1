@@ -50,15 +50,22 @@ logger = logging.getLogger(__name__)
 def daily_top(top_N = 10, ALT_code="ATL_daily_top", ALT_domain="video_all",
               input_path="data/daily_top.csv"):
     if ALT_domain == "video_all":
-        SIDs = []
+        SIDs = []  # keep SID unique
         with open(input_path, 'r') as r:
             r.readline()  # skip the first line
             while True:
                 line = r.readline()
-                if line:
-                    SIDs.append(line.rstrip().split(",")[0])
+                if line:  # ep,SID,nb_watch
+                    SID = line.rstrip().split(",")[1].replace('"', '')
+                    if SID not in SIDs:
+                        SIDs.append(SID)
+
+                        if len(SIDs) >= top_N:
+                            break
                 else:
                     break
+
+        SIDs = list(SIDs)
 
         with open(f"{ALT_code}-{ALT_domain}.csv", "w") as w:
             w.write("{},{},{:.4f}\n".format("all", '|'.join(SIDs[:int(top_N)]), 1.0))
@@ -75,9 +82,8 @@ def main():
     start_time = time.time()
 
     if arguments['new_arrival']:
+        # python altmaker.py new_arrival ALT_new_arrival video_all --model data/implicit_bpr.model.{?}  [--top_n=<tn> | --target_users=PATH]
         new_arrival_maker(arguments['--model'], ALT_code=arguments["<ALT_code>"], ALT_domain=arguments["<ALT_domain>"])
-        # altmaker.py (new_arrival) --model=PATH <ALT_code> <alt_genre> [--top_n=<tn> | --target_users=PATH]
-        # alt_reranker.alt_reranker(opts).new_arrival(input_path="data/new_arrival.csv", ALT_code=arguments["<ALT_code>"], alt_genre=arguments["<alt_genre>"])
     elif arguments['top']:
         daily_top(top_N=int(arguments['--top_n']), input_path="data/daily_top.csv",
                   ALT_code=arguments["<ALT_code>"], ALT_domain=arguments["<ALT_domain>"])

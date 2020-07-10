@@ -147,6 +147,9 @@ def new_ep_recommender(model_path):
 
     logging.info(f"{len(new_arrival_sid_epc)} SIDs w/ new arrival EP")
 
+    # new ep is high priority, score = bpr_score + score_base
+    score_base = 100
+
     new_ep_reco = {}
     for i, (uid, sid_list, score_list) in enumerate(rerank_seen(model, None,
                                                                 target_items=list(new_arrival_sid_epc.keys()),
@@ -167,7 +170,7 @@ def new_ep_recommender(model_path):
                                         if ep not in watched_eps})
                 # new_ep_reco.setdefault(uid, {'SIDs':[sid for sid, ep in user_interesting_new_eps if ep not in watched_eps]})
             else:
-                new_ep_reco.setdefault(uid, {sid:score.item() for sid, score in zip(sid_list, score_list)})
+                new_ep_reco.setdefault(uid, {sid:score.item()+score_base for sid, score in zip(sid_list, score_list)})
     logging.info(f"{len(new_ep_reco)} users are binge-watching sth")
     # TODO: same series reco
 
@@ -177,7 +180,7 @@ def new_ep_recommender(model_path):
 
 
 def reco_by_user_similarity(model_path,
-                            nb_similar_user=100000,
+                            nb_similar_user=30000,
                             new_arrival_SIDs_path="data/new_arrival_SID.csv",
                             new_user_session_path="data/new_user_sessions.csv"):
     """
@@ -185,7 +188,11 @@ def reco_by_user_similarity(model_path,
     142 new arrival SIDs -> 110 done / 32 sakuhins haven't been watched yet
     user coverage rate: 1767708/1900365 = 0.93
     took 185s ~= 6m
-
+    ========
+    nb_similar_user=30000
+    user coverage rate: 1947403/1947410 = 0.9999964054821532
+    143 done / 21 sakuhins haven't been watched yet
+    execution time = 4207.13515496254
     ========
     nb_similar_user=100000
     142 new arrival SIDs -> 110 done / 32 sakuhins haven't been watched yet
@@ -211,11 +218,16 @@ def reco_by_user_similarity(model_path,
     logging.info(f"{len(new_arrival_SIDs)} new arrival SIDs ")
 
     # user sessions for new arrival SIDs
+    line_counter = 0
     with open(new_user_session_path, "r") as r:
         r.readline()
         while True:
             line = r.readline()
             if line:
+                if line_counter%10000 == 1:
+                    logging.info(f"{line_counter} done")
+                line_counter+=1
+
                 arr = line.rstrip().replace('"', '').split(",")
                 nb = len(arr) - 1
                 SIDs = arr[1:1 + int(nb / 3)]
@@ -258,6 +270,8 @@ def reco_by_user_similarity(model_path,
 
 def video_domain(model_path, output_name):
     start_time = time.time()
+
+    # new ep -> high priority -> score = 100 + bpr score
     new_arrival_ep_reco = new_ep_recommender(model_path)
     logging.info(f"took {time.time() - start_time}")
 
