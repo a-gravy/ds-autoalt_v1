@@ -392,8 +392,7 @@ class UserStatistics:
             return top_n_alt
 
 
-
-def video_all_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
+def video_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
                          unext_sakuhin_meta_path="data/unext_sakuhin_meta.csv",
                          meta_lookup_path="data/unext_sakuhin_meta_lookup.csv",
                          user_sessions_path="data/user_sessions.csv",
@@ -486,7 +485,7 @@ def video_all_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
         x = list(lookup[condition]['sakuhin_public_code'].unique())
         return x
 
-    # 4.
+    # 4. output genrerows for reranking
     nb_genre_row_written = 0
     with open(output_path, "w") as w:  # alt, sid list, uid list, score list
         for alt, lists in alt_dict.items():
@@ -529,8 +528,8 @@ def user_session_data_checker(user_sessions_path="data/user_sessions.csv"):
 
 def make_alt(ALT_code, ALT_domain, nb_alt, max_nb_reco, min_nb_reco,
              unext_sakuhin_meta_path, meta_lookup_path, user_sessions_path):
-    if ALT_domain == "video_all":
-        video_all_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
+    if ALT_domain == "video":
+        video_genre_rows(nb_alt, max_nb_reco, min_nb_reco,
                              unext_sakuhin_meta_path, meta_lookup_path,
                              user_sessions_path, output_path="data/genre_rows.csv")
     elif ALT_domain == "book_all":

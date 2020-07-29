@@ -189,7 +189,7 @@ def get_sth_tidb():
     tidb_conn_string = 'mysql://reco:reco@10.232.201.39:3306/recodb?charset=utf8'  # version 4
     # task = "new_user_sessions_{}_days"
     task = "daily_top"
-    n_days = 30
+    n_days = 100
 
     in_sql = get_filepath_content(str(Path("workspace/alt/personalized/{}.sql".format(task))))
     query = mysql(tidb_conn_string)

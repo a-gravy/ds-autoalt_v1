@@ -114,7 +114,7 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
 
 def make_alt(ALT_code, ALT_domain, filter_items=None, watched_list_rerank=None, min_nb_reco=10,
              user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/cbf_integration.csv"):
-    if ALT_domain == "video_all":
+    if ALT_domain == "video":
         video_byw(ALT_code, ALT_domain, filter_items, watched_list_rerank, min_nb_reco,
              user_sessions_path, cbf_table_path)
     elif ALT_domain == "book_all":

@@ -47,9 +47,9 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def daily_top(top_N = 10, ALT_code="ATL_daily_top", ALT_domain="video_all",
+def daily_top(top_N = 10, ALT_code="ALT_daily_top", ALT_domain="video",
               input_path="data/daily_top.csv"):
-    if ALT_domain == "video_all":
+    if ALT_domain == "video":
         SIDs = []  # keep SID unique
         with open(input_path, 'r') as r:
             r.readline()  # skip the first line
@@ -66,9 +66,21 @@ def daily_top(top_N = 10, ALT_code="ATL_daily_top", ALT_domain="video_all",
                     break
 
         SIDs = list(SIDs)
+        SIDs_str = '|'.join(SIDs[:int(top_N)])
+        user_count = 0
 
         with open(f"{ALT_code}-{ALT_domain}.csv", "w") as w:
-            w.write("{},{},{:.4f}\n".format("all", '|'.join(SIDs[:int(top_N)]), 1.0))
+            with open("data/target_users.csv", "r") as r:
+                r.readline()
+                while True:
+                    line = r.readline()
+                    if line:
+                        user_count += 1
+                        arr = line.rstrip().split(",")
+                        w.write("{},{},{:.4f}\n".format(arr[1], SIDs_str, 1.0))
+                    else:
+                        logging.info(f"{user_count} users' daily_top are updated")
+                        break
     elif ALT_domain == "book":
         raise Exception("Not implemented yet")
     else:
@@ -82,13 +94,13 @@ def main():
     start_time = time.time()
 
     if arguments['new_arrival']:
-        # python altmaker.py new_arrival ALT_new_arrival video_all --model data/implicit_bpr.model.{?}  [--top_n=<tn> | --target_users=PATH]
+        # python altmaker.py new_arrival ALT_new_arrival video --model data/implicit_bpr.model.{?}  [--top_n=<tn> | --target_users=PATH]
         new_arrival_maker(arguments['--model'], ALT_code=arguments["<ALT_code>"], ALT_domain=arguments["<ALT_domain>"])
     elif arguments['top']:
         daily_top(top_N=int(arguments['--top_n']), input_path="data/daily_top.csv",
                   ALT_code=arguments["<ALT_code>"], ALT_domain=arguments["<ALT_domain>"])
     elif arguments['byw']:
-        # python altmaker.py byw ALT_byw video_all --filter_items data/filter_out_sakuhin_implicit.csv --watched_list data/watched_list_rerank.csv --min_nb_reco 4
+        # python altmaker.py byw ALT_byw video --filter_items data/filter_out_sakuhin_implicit.csv --watched_list data/watched_list_rerank.csv --min_nb_reco 4
         kwargs = {
             "ALT_code": arguments["<ALT_code>"],
             "ALT_domain": arguments["<ALT_domain>"],
@@ -100,7 +112,7 @@ def main():
         }
         byw_maker(**kwargs)
     elif arguments['genre_row']:
-        # python altmaker.py genre_row ALT_genrerow video_all --model ../data/bpr/implicit_bpr.model.2020-06-06 --target_users data/target_users.csv
+        # python altmaker.py genre_row ALT_genrerow video --model ../data/bpr/implicit_bpr.model.2020-06-06 --target_users data/target_users.csv
         kwargs = {
             "ALT_code": arguments["<ALT_code>"],
             "ALT_domain": arguments["<ALT_domain>"],

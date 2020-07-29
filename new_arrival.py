@@ -296,9 +296,9 @@ def video_domain(model_path, output_name):
     # TODO:popularity
 
 
-def make_alt(model_path, ALT_code="ALT_new_arrival", ALT_domain="video_all"):
+def make_alt(model_path, ALT_code="ALT_new_arrival", ALT_domain="video"):
     logging.info(f"making {ALT_code} on {ALT_domain} using model:{model_path}")
-    if ALT_domain == "video_all":
+    if ALT_domain == "video":
         video_domain(model_path, output_name=f"{ALT_code}-{ALT_domain}.csv")
     elif ALT_domain == "book":
         raise Exception("Not implemented yet")
