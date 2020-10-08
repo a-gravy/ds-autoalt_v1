@@ -1,8 +1,8 @@
 import logging
-from dstools.utils import normalize_path, save_list_to_file, file_to_list
+# from dstools.utils import normalize_path, save_list_to_file, file_to_list
+from utils import file_to_list
 
-
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 # past N days is corresponding to past N days of new_arrival_EP.csv
@@ -19,6 +19,8 @@ def new_user_session_reader(input_path="data/new_user_sessions.csv"):
             line = r.readline()
             if line:
                 arr = line.rstrip().replace('"', '').split(",")
+                if arr[0] == '':  # userid == '' represent users w/o login
+                    continue
                 nb = len(arr) - 1
                 SIDs = arr[1:1 + int(nb / 3)]
                 yield arr[0], list(set(SIDs))
@@ -26,8 +28,8 @@ def new_user_session_reader(input_path="data/new_user_sessions.csv"):
                 break
 
 
-def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=None, min_nb_reco=4,
-             user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/cbf_integration.csv"):
+def video_byw(alt_info, create_date, filter_items_path=None, watched_list_ippan=None, min_nb_reco=4,
+             user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/postplay_implicit.csv"):
     """
     video-video similarity for because you watched(BYW)
 
@@ -42,9 +44,25 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
 
     :param cbf_table_path: sakuhin_public_code, rs_list
     """
-    # read content-based filtering recommendation
+    # TODO: using cbf_table, current workaround = postplay_implicit
+    # TODO: rerank by BPR, currrent workaround = no reranking <- may need A/B test
+    # TODO: issue, same series sakuhins oppcupy almost whole reco
+
+    logging.info("loading sid, name lookup table")
+    sid_name_dict = {}
+    with open("data/sid_name_dict.csv", "r") as r:
+        r.readline()
+        while True:
+            line = r.readline()
+            if line:
+                arr = line.rstrip().split(",")
+                sid_name_dict.setdefault(arr[0], arr[1])
+            else:
+                break
+
+    logging.info("loading content-based filtering recommendation")
     cbf_dict = {}
-    with open(cbf_table_path, 'r') as r:
+    with open(cbf_table_path, 'r') as r:  # SID, SID|SID|...
         while True:
             line = r.readline()
             if line:
@@ -53,20 +71,31 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
             else:
                 break
 
+    logging.info("loading filtering items")
     # read filtering items
     filter_items = []
     if filter_items:
         filter_items = file_to_list(filter_items_path)
+
+    logging.info("loading watched_list_ippan as user seen items")
+    # TODO maintain a seen list for speed up
     dict_watched_sakuhin = {}
-    if watched_list_rerank:
-        list_watched = file_to_list(watched_list_rerank)
-        for i in list_watched:
-            userid, sids = i.split(',')
-            dict_watched_sakuhin[userid] = sids.split("|")
-        del list_watched
+    with open(watched_list_ippan, "r") as r:  # userid,item,rating ; rating != 1 -> bookmark
+        while True:
+            line = r.readline()
+            if line:
+                arr = line.rstrip().split(",")
+                if arr[2] == '1':
+                    userid = arr[0]
+                    dict_watched_sakuhin[userid] = dict_watched_sakuhin.setdefault(userid, []) + [arr[1]]
+            else:
+                break
 
     logging.info("making because_you_watched rows for new session users")
-    with open(f'{ALT_code}-{ALT_domain}.csv', "w") as w:
+    with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+        w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
+                "feature_name,feature_description,domain,is_autoalt\n")
+
         # read userid & sids
         for line_counter, (userid, session_sids) in enumerate(new_user_session_reader(input_path=user_sessions_path)):
             if line_counter%10000 == 1:
@@ -106,18 +135,29 @@ def video_byw(ALT_code, ALT_domain, filter_items_path=None, watched_list_rerank=
                         sid not in set(dict_watched_sakuhin.get(userid, []))]
                 # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
                 if len(arrs) >= min_nb_reco:
+                    title = sid_name_dict.get(session_SID, None)
+                    if title:
+                        title = title.rstrip().replace('"','').replace("'","")
+                        title = alt_info['feature_name'].values[0].replace("○○", title)
+
+                        w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(arrs)},"
+                                f"{title},,{alt_info['domain'].values[0]},1\n")
+                    else:
+                        logging.warning(f"{session_SID} can not find a mapping title")
                     # user_multi_account_id,byw_sid,sakuhin_codes,alt_score
-                    w.write('{},{},{},{:.4f}\n'.format(userid, session_SID, "|".join(arrs), 1.0))
+                    # w.write('{},{},{},{:.4f}\n'.format(userid, session_SID, "|".join(arrs), 1.0))
             else:
                 pass
 
 
-def make_alt(ALT_code, ALT_domain, filter_items=None, watched_list_rerank=None, min_nb_reco=10,
-             user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/cbf_integration.csv"):
-    if ALT_domain == "video":
-        video_byw(ALT_code, ALT_domain, filter_items, watched_list_rerank, min_nb_reco,
-             user_sessions_path, cbf_table_path)
-    elif ALT_domain == "book_all":
+def make_alt(alt_info, create_date, filter_items=None, watched_list_ippan=None, min_nb_reco=10,
+             user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/postplay_implicit.csv"):
+
+    domain = alt_info['domain'].values[0]
+    if domain == "video":
+        video_byw(alt_info, create_date, filter_items, watched_list_ippan, min_nb_reco,
+                  user_sessions_path, cbf_table_path)
+    elif domain == "book_all":
         raise Exception("Not implemented yet")
     else:
         raise Exception("unknown ALT_domain")

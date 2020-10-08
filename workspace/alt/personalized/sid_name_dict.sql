@@ -1,0 +1,1 @@
+select sakuhin_public_code, display_name from dim_sakuhin

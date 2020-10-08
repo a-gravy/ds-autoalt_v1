@@ -176,7 +176,7 @@ def demo_get_dim_table():
 
 def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
-    task = "unext_sakuhin_meta_lookup"  # "unext_sakuhin_meta"
+    task = "dim_autoalt"  # "unext_sakuhin_meta" "sid_name_dict"
 
     in_path = str(Path("workspace/alt/personalized/{}.sql".format(task)))
     in_sql = get_filepath_content(in_path)
@@ -186,10 +186,10 @@ def get_sth_postegres():
 
 def get_sth_tidb():
     #tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'  # version 3
-    tidb_conn_string = 'mysql://reco:reco@10.232.201.39:3306/recodb?charset=utf8'  # version 4
+    tidb_conn_string = 'mysql://reco:reco@10.232.201.38:3306/recodb?charset=utf8'  # version 4
     # task = "new_user_sessions_{}_days"
-    task = "daily_top"
-    n_days = 100
+    task = "daily_top_genre" # "daily_top" "new_user_sessions_{}_days"
+    n_days = 1
 
     in_sql = get_filepath_content(str(Path("workspace/alt/personalized/{}.sql".format(task))))
     query = mysql(tidb_conn_string)
@@ -209,8 +209,8 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    # get_sth_tidb()
     get_sth_tidb()
+    # get_sth_postegres()
 
 
 if __name__ == '__main__':

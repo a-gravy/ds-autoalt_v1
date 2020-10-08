@@ -24,13 +24,12 @@ import os, sys, tempfile, logging, time
 import numpy as np
 import time
 import operator
-from implicit.bpr import BayesianPersonalizedRanking
-from recoalgos.matrixfactor.bpr import BPRRecommender
-from scipy.sparse import coo_matrix
+#from implicit.bpr import BayesianPersonalizedRanking
+#from recoalgos.matrixfactor.bpr import BPRRecommender
+#from scipy.sparse import coo_matrix
 
 
-
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # TODO: move to tool.py
 def load_model(path):
@@ -134,7 +133,7 @@ def user_session_reader(input_path="data/new_user_sessions.csv"):
     return us_dict
 
 
-def new_ep_recommender(model_path):
+def new_ep_recommender_bk(model_path):
     """
     669933 users are binge-watching sth,
     took 494s
@@ -177,6 +176,60 @@ def new_ep_recommender(model_path):
     # TODO: update N past days daily or just one day daily?
 
     return new_ep_reco
+
+
+def new_ep_recommender(alt_info, create_date, model_path, min_nb_reco):
+    """
+    669933 users are binge-watching sth,
+    took 494s
+
+    :return: a dict {user_id:{SIDA:scoreA, SIDB:scoreB, ...}
+    """
+    model = load_model(model_path)
+    new_arrival_sid_epc = new_arrival_ep_loader()
+    user_session = user_session_reader()
+
+    logging.info(f"{len(new_arrival_sid_epc)} SIDs w/ new arrival EP")
+
+    with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:  # TODO: new_arrival_reco
+        w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
+                "feature_name,feature_description,domain,is_autoalt\n")
+        for i, (userid, sid_list, score_list) in enumerate(rerank_seen(model, None,
+                                                                    target_items=list(new_arrival_sid_epc.keys()),
+                                                                    batch_size=10000)):
+            if i%10000 == 0:
+                logging.info('progress: {:.3f}'.format(float(i)/len(model.user_item_matrix.user2id)*100))
+
+            # get new EPs of user binge-watching sakuhins
+            user_interesting_new_eps = [(sid, new_arrival_sid_epc.get(sid)) for sid in sid_list]
+
+            if len(user_interesting_new_eps) < min_nb_reco:
+                continue
+
+            if user_interesting_new_eps:
+                watched_eps = user_session.get(userid, None)
+                if watched_eps:  # remove already watched EP
+                    watched_eps = set(watched_eps)
+
+                    unseen_new_eps_sids = [sid for (sid, ep) in user_interesting_new_eps
+                                            if ep not in watched_eps]
+
+                    if len(unseen_new_eps_sids) < min_nb_reco:
+                        continue
+
+                    w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(unseen_new_eps_sids)},"
+                            f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+
+                    #new_ep_reco.setdefault(userid,
+                    #                       {sid:score.item() for (sid, ep), score in zip(user_interesting_new_eps, score_list)
+                    #                        if ep not in watched_eps})
+                else:
+                    w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(sid_list)},"
+                            f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+                    # new_ep_reco.setdefault(userid, {sid:score.item()+score_base for sid, score in zip(sid_list, score_list)})
+    # TODO: same series reco
+
+    # TODO: update N past days daily or just one day daily?
 
 
 def reco_by_user_similarity(model_path,
@@ -268,14 +321,31 @@ def reco_by_user_similarity(model_path,
     return new_arrival_reco, nb_nobody_wacthed_sids
 
 
-def video_domain(model_path, output_name):
+def video_domain(alt_info, create_date, model_path, output_name):
     start_time = time.time()
 
     # new ep -> high priority -> score = 100 + bpr score
     new_arrival_ep_reco = new_ep_recommender(model_path)
     logging.info(f"took {time.time() - start_time}")
 
-    # user-similarity
+    logging.info("merge & rank by score")
+    with open(output_name, "w") as w:  # TODO: new_arrival_reco
+        w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
+                "feature_name,feature_description,domain,is_autoalt\n")
+        for userid in new_arrival_ep_reco.keys():
+            # combine recommendations
+            sid_score_dict = {}
+            sid_score_dict.update(new_arrival_ep_reco.get(userid, {}))
+            sid_list, score_list = [], []
+            for k, v in sorted(sid_score_dict.items(), key=operator.itemgetter(1), reverse=True):
+                sid_list.append(k)
+                score_list.append('{:.3f}'.format(v))
+            # w.write(f'{user_id},{"|".join(sid_list)},1.0\n')
+            w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(sid_list)},"
+                    f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+
+    """
+    # user-similarity  TODO: replaced by serendipity
     start_time = time.time()
     new_arrival_sid_reco, nb_nobody_wacthed_sids = reco_by_user_similarity(model_path)
     logging.info(f"took {time.time() - start_time}")
@@ -292,15 +362,14 @@ def video_domain(model_path, output_name):
                 sid_list.append(k)
                 score_list.append('{:.3f}'.format(v))
             w.write(f'{user_id},{"|".join(sid_list)},1.0\n')
+    """
 
-    # TODO:popularity
 
-
-def make_alt(model_path, ALT_code="ALT_new_arrival", ALT_domain="video"):
-    logging.info(f"making {ALT_code} on {ALT_domain} using model:{model_path}")
-    if ALT_domain == "video":
-        video_domain(model_path, output_name=f"{ALT_code}-{ALT_domain}.csv")
-    elif ALT_domain == "book":
+def make_alt(alt_info, create_date, model_path, min_nb_reco):
+    logging.info(f"making {alt_info} using model:{model_path}")
+    if alt_info['domain'].values[0] == "video":
+        new_ep_recommender(alt_info, create_date, model_path, min_nb_reco)
+    elif alt_info['domain'].values[0] == "book":
         raise Exception("Not implemented yet")
     else:
         raise Exception("unknown ALT_domain")

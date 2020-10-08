@@ -1,0 +1,13 @@
+data
+backup
+workspace
+tmp
+build
+fets
+dist
+pg
+*.gz
+*.csv
+*.ipynb
+__pycache__
+.gitignore

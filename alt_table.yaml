@@ -1,0 +1,21 @@
+tables:
+  - id: alt_table_video
+    table: alt_table
+    keyspace: starship
+    file: s3://unext-datascience/alts/alt_table.csv.gz
+    sstable: gs://starship-storage/starship/keep/cassandra/unext/ippan/alt_table.tar.gz
+    primaryKey: user_multi_account_id, feature_public_code
+    compaction: "{'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}"
+    compression: "{'chunk_length_kb': '32', 'sstable_compression': 'LZ4Compressor'}"
+    ttl: 604800
+    columns:
+    - col: user_multi_account_id
+    - col: feature_public_code
+    - col: create_date
+      type: int
+    - col: sakuhin_codes
+    - col: feature_name
+    - col: feature_description
+    - col: domain
+    - col: is_autoalt
+      type: int

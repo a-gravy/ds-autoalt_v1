@@ -12,7 +12,7 @@ IMAGE_LATEST ?= $(AWS_REPOSITORY)/ds-$(NAME):latest
 .PHONY: build clean
 
 
-build:  build_whl build_docker
+build:  build_docker
 
 build_whl:
 	echo "#####build_whl#####"
