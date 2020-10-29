@@ -38,11 +38,15 @@ import os, logging, time
 from datetime import date
 import pandas as pd
 from docopt import docopt
+import yaml
 from new_arrival import make_alt as new_arrival_maker
 from because_you_watched import make_alt as byw_maker
 # from genre_row_maker import make_alt as genre_row_maker
 
 logging.basicConfig(level=logging.INFO)
+
+with open("config.yaml") as f:
+    config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 
 def daily_top(alt_info,  # as a dataframe
@@ -80,10 +84,9 @@ def daily_top(alt_info,  # as a dataframe
 
         # just make one row for user "COMMON"
         with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
-                    "feature_name,feature_description,domain,is_autoalt\n")
+            w.write(config['header']['autoalt'])
             w.write(f"COMMON,{alt_info['feature_public_code'].values[0]},{create_date},{SIDs_str},"
-                    f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+                    f"{alt_info['feature_title'].values[0]},{alt_info['domain'].values[0]},1\n")
 
         """ 
         # this version make one row for each user
@@ -163,10 +166,9 @@ def daily_top_genre(alt_info,  # as a dataframe
 
         # just make one row for user "COMMON"
         with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
-                    "feature_name,feature_description,domain,is_autoalt\n")
+            w.write(config['header']['autoalt'])
             w.write(f"COMMON,{alt_info['feature_public_code'].values[0]},{create_date},{reco_str},"
-                    f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+                    f"{alt_info['feature_title'].values[0]},{alt_info['domain'].values[0]},1\n")
 
     elif alt_info['domain'].values[0] == "book":
         raise Exception("Not implemented yet")
@@ -175,11 +177,10 @@ def daily_top_genre(alt_info,  # as a dataframe
 
 
 def allocate_fets_to_alt_page(dir_path):
-    # allocate files in dir_path to alt_table.csv
+    # allocate files in dir_path to feature_table.csv
 
-    alt_table_writer = open("alt_table.csv", 'w')
-    alt_table_writer.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
-                           "feature_name,feature_description,domain,is_autoalt\n")
+    feature_table_writer = open("feature_table.csv", 'w')
+    feature_table_writer.write(config['header']['feature_table'])
 
     for file in os.listdir(dir_path):
 
@@ -193,7 +194,18 @@ def allocate_fets_to_alt_page(dir_path):
                 while True:
                     line = r.readline()
                     if line:
-                        alt_table_writer.write(line)
+                        feature_table_writer.write(line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n')
+                    else:
+                        break
+        elif 'toppick' in file:  # TODO: this is workaround solution, eventually FET_toppick will be the same format as other 自動生成FETs
+            logging.info(f'processing {file}')
+            with open(os.path.join(dir_path, file), "r") as r:
+                r.readline()
+                while True:
+                    line = r.readline()
+                    if line:
+                        arr = line.rstrip().split(',')
+                        feature_table_writer.write(f'{arr[0]},JFET000001,{arr[-1]},{arr[2]},new あなたへのおすすめ,video,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n')
                     else:
                         break
         else:  # 調達部FETs from alt_features_implicit.csv  TODO directly get this format from upstream
@@ -209,12 +221,13 @@ def allocate_fets_to_alt_page(dir_path):
                         elif len(arr) > 11:
                             arr[10] = ' '.join(arr[10:])  # for those lines w/ too more "," ->  join them
 
-                        title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                        description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                        alt_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},{title},{description},{arr[8]},{arr[7]}\n")
+                        # don't save title info
+                        # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
+                        # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
+                        feature_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,{arr[8]},{arr[7]},{arr[5]},{arr[6]}\n")
                     else:
                         break
-    logging.info("alt_table.csv allocation done")
+    logging.info("feature_table.csv allocation done")
 
 
 def main():

@@ -1,9 +1,11 @@
 import logging
-# from dstools.utils import normalize_path, save_list_to_file, file_to_list
+import yaml
 from utils import file_to_list
 
 logging.basicConfig(level=logging.INFO)
 
+with open("config.yaml") as f:
+    config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 # past N days is corresponding to past N days of new_arrival_EP.csv
 def new_user_session_reader(input_path="data/new_user_sessions.csv"):
@@ -93,8 +95,7 @@ def video_byw(alt_info, create_date, filter_items_path=None, watched_list_ippan=
 
     logging.info("making because_you_watched rows for new session users")
     with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-        w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
-                "feature_name,feature_description,domain,is_autoalt\n")
+        w.write(config['header']['autoalt'])
 
         # read userid & sids
         for line_counter, (userid, session_sids) in enumerate(new_user_session_reader(input_path=user_sessions_path)):
@@ -138,14 +139,12 @@ def video_byw(alt_info, create_date, filter_items_path=None, watched_list_ippan=
                     title = sid_name_dict.get(session_SID, None)
                     if title:
                         title = title.rstrip().replace('"','').replace("'","")
-                        title = alt_info['feature_name'].values[0].replace("○○", title)
+                        title = alt_info['feature_title'].values[0].replace("○○", title)
 
                         w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(arrs)},"
-                                f"{title},,{alt_info['domain'].values[0]},1\n")
+                                f"{title},{alt_info['domain'].values[0]},1\n")
                     else:
                         logging.warning(f"{session_SID} can not find a mapping title")
-                    # user_multi_account_id,byw_sid,sakuhin_codes,alt_score
-                    # w.write('{},{},{},{:.4f}\n'.format(userid, session_SID, "|".join(arrs), 1.0))
             else:
                 pass
 

@@ -24,12 +24,12 @@ import os, sys, tempfile, logging, time
 import numpy as np
 import time
 import operator
-#from implicit.bpr import BayesianPersonalizedRanking
-#from recoalgos.matrixfactor.bpr import BPRRecommender
-#from scipy.sparse import coo_matrix
-
+import yaml
 
 logging.basicConfig(level=logging.INFO)
+
+with open("config.yaml") as f:
+    config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 # TODO: move to tool.py
 def load_model(path):
@@ -192,8 +192,7 @@ def new_ep_recommender(alt_info, create_date, model_path, min_nb_reco):
     logging.info(f"{len(new_arrival_sid_epc)} SIDs w/ new arrival EP")
 
     with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:  # TODO: new_arrival_reco
-        w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
-                "feature_name,feature_description,domain,is_autoalt\n")
+        w.write(config['header']['autoalt'])
         for i, (userid, sid_list, score_list) in enumerate(rerank_seen(model, None,
                                                                     target_items=list(new_arrival_sid_epc.keys()),
                                                                     batch_size=10000)):
@@ -218,14 +217,10 @@ def new_ep_recommender(alt_info, create_date, model_path, min_nb_reco):
                         continue
 
                     w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(unseen_new_eps_sids)},"
-                            f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
-
-                    #new_ep_reco.setdefault(userid,
-                    #                       {sid:score.item() for (sid, ep), score in zip(user_interesting_new_eps, score_list)
-                    #                        if ep not in watched_eps})
+                            f"{alt_info['feature_title'].values[0]},{alt_info['domain'].values[0]},1\n")
                 else:
                     w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(sid_list)},"
-                            f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+                            f"{alt_info['feature_title'].values[0]},{alt_info['domain'].values[0]},1\n")
                     # new_ep_reco.setdefault(userid, {sid:score.item()+score_base for sid, score in zip(sid_list, score_list)})
     # TODO: same series reco
 
@@ -324,14 +319,13 @@ def reco_by_user_similarity(model_path,
 def video_domain(alt_info, create_date, model_path, output_name):
     start_time = time.time()
 
-    # new ep -> high priority -> score = 100 + bpr score
     new_arrival_ep_reco = new_ep_recommender(model_path)
     logging.info(f"took {time.time() - start_time}")
 
     logging.info("merge & rank by score")
     with open(output_name, "w") as w:  # TODO: new_arrival_reco
         w.write("user_multi_account_id,feature_public_code,create_date,sakuhin_codes,"
-                "feature_name,feature_description,domain,is_autoalt\n")
+                "feature_title,feature_description,domain,autoalt\n")
         for userid in new_arrival_ep_reco.keys():
             # combine recommendations
             sid_score_dict = {}
@@ -342,7 +336,7 @@ def video_domain(alt_info, create_date, model_path, output_name):
                 score_list.append('{:.3f}'.format(v))
             # w.write(f'{user_id},{"|".join(sid_list)},1.0\n')
             w.write(f"{userid},{alt_info['feature_public_code'].values[0]},{create_date},{'|'.join(sid_list)},"
-                    f"{alt_info['feature_name'].values[0]},,{alt_info['domain'].values[0]},1\n")
+                    f"{alt_info['feature_title'].values[0]},,{alt_info['domain'].values[0]},1\n")
 
     """
     # user-similarity  TODO: replaced by serendipity

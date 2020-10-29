@@ -1,0 +1,3 @@
+header:
+  autoalt:       "user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt\n"
+  feature_table: "user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt,feature_public_start_datetime,feature_public_end_datetime\n"
