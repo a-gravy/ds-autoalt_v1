@@ -1,9 +1,10 @@
 data
 backup
+fets
+check
 workspace
 tmp
 build
-fets
 dist
 pg
 *.gz
