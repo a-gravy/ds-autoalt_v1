@@ -5,8 +5,8 @@ from autoalt_maker import AutoAltMaker
 logging.basicConfig(level=logging.INFO)
 
 class BecauseYouWatched(AutoAltMaker):
-    def __init__(self, alt_info, create_date, blacklist_path, max_nb_reco=30, min_nb_reco=3):
-        super().__init__(alt_info, create_date, blacklist_path, max_nb_reco, min_nb_reco)
+    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
+        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
     def make_alt(self, watched_list_ippan=None):
         if self.alt_info['domain'].values[0] == "video":
@@ -133,9 +133,10 @@ class BecauseYouWatched(AutoAltMaker):
                         to_del = []
 
                 for SIDs, session_SID in session_dict.items():
-                    # do filtering
+                    # blacklist filtering
                     arrs = [sid for sid in SIDs.split("|") if sid not in self.blacklist and
                             sid not in set(dict_watched_sakuhin.get(userid, []))]
+                    arrs = self.rm_series(arrs)
                     # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
                     if len(arrs) >= self.min_nb_reco:
                         title = sid_name_dict.get(session_SID, None)

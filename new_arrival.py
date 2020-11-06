@@ -31,8 +31,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 class NewArrival(AutoAltMaker):
-    def __init__(self, alt_info, create_date, blacklist_path, max_nb_reco=30, min_nb_reco=3):
-        super().__init__(alt_info, create_date, blacklist_path, max_nb_reco, min_nb_reco)
+    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
+        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
     def make_alt(self, bpr_model_path):
         logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
@@ -83,12 +83,13 @@ class NewArrival(AutoAltMaker):
 
                     # reco = self.black_list_filtering(reco)  # unnecessary, since this SID is what user interested
                     reco = self.rm_duplicates(reco)
+                    if self.series_dict:
+                        reco = self.rm_series(reco)
 
                     w.write(
                         f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
                         f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
                         # new_ep_reco.setdefault(userid, {sid:score.item()+score_base for sid, score in zip(sid_list, score_list)})
-        # TODO: same series reco
 
         # TODO: update N past days daily or just one day daily?
 
@@ -109,7 +110,7 @@ class NewArrival(AutoAltMaker):
 
         # user id -> matrix index
         if target_users is None:
-            target_users_index_list = list(model.user_item_matrix.user2id.values())[:1000]  # TODO [:100] is for testing
+            target_users_index_list = list(model.user_item_matrix.user2id.values())  # TODO [:100] is for testing
         else:
             target_users_index_list = [model.user_item_matrix.user2id.get(user) for user in target_users if
                                        model.user_item_matrix.user2id.get(user) is not None]

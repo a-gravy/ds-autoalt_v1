@@ -1,9 +1,9 @@
 """autoalt
 
 Usage:
-    autoalt.py top <feature_public_code>  --input=PATH  --blacklist=PATH [--max_nb_reco=<tn> --min_nb_reco=<tn>]
-    autoalt.py byw <feature_public_code>  --blacklist=PATH  --watched_list=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn>]
-    autoalt.py new_arrival <feature_public_code>  --model=PATH  --blacklist=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn>]
+    autoalt.py top <feature_public_code>  --input=PATH  --blacklist=PATH [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py byw <feature_public_code>  --blacklist=PATH  --watched_list=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py new_arrival <feature_public_code>  --model=PATH  --blacklist=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py allocate_FETs
     autoalt.py check_reco --input=PATH --blacklist=PATH
 
@@ -22,6 +22,7 @@ Options:
     --watched_list PATH   watched_list_rerank.csv
     --target_users PATH   active users
     --target_items PATH   target items to recommend
+    --series PATH         path of SID-series_id file
 
 
 """
@@ -160,17 +161,20 @@ def main():
         if arguments['top']:
             # python autoalt.py top CFET000001 --input data/daily_top_genre.csv --blacklist data/filter_out_sakuhin_implicit.csv  --max_nb_reco 30
             alt = DailyTop(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
+                           series_path=arguments["--series"],
                            max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(input_path=arguments["--input"])
         elif arguments["new_arrival"]:
-            # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/filter_out_sakuhin_implicit.csv
+            # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/filter_out_sakuhin_implicit.csv --series data/sid_series.csv
             alt = NewArrival(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
+                             series_path=arguments["--series"],
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(bpr_model_path=arguments["--model"])
         elif arguments["byw"]:
-            #
+            # python autoalt.py  byw JFET000002 --blacklist data/filter_out_sakuhin_implicit.csv  --watched_list data/watched_list_ippan.csv --series data/sid_series.csv
             alt = BecauseYouWatched(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                             max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
+                                    series_path=arguments["--series"],
+                                    max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(arguments["--watched_list"])
         elif arguments['genre_row']:
             raise Exception("genre_row is invalid using current bad TAGs :(")

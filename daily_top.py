@@ -3,8 +3,8 @@ from autoalt_maker import AutoAltMaker
 
 
 class DailyTop(AutoAltMaker):
-    def __init__(self, alt_info, create_date, blacklist_path, max_nb_reco=30, min_nb_reco=3):
-        super().__init__(alt_info, create_date, blacklist_path, max_nb_reco, min_nb_reco=3)
+    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
+        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
     def make_alt(self, input_path):
         if self.alt_info['domain'].values[0] == "video":
