@@ -1,6 +1,7 @@
-import pandas as pd
+import logging
 from autoalt_maker import AutoAltMaker
 
+logging.basicConfig(level=logging.INFO)
 
 class DailyTop(AutoAltMaker):
     def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
@@ -33,8 +34,10 @@ class DailyTop(AutoAltMaker):
                 else:
                     break
 
-        SIDs = self.black_list_filtering(SIDs)
-        SIDs = self.rm_duplicates(SIDs)
+        if not SIDs:
+            raise Exception(f"ERROR:{input_path} has no data")
+        else:
+            logging.info(f"read {len(SIDs)} lines, going to make FET daily_top ")
 
         genre_dict = {}  # genre: SID list
         for SID, genre in zip(SIDs, genres):
@@ -57,6 +60,9 @@ class DailyTop(AutoAltMaker):
             for k in genre_dict.keys():
                 if genre_dict[k][i]:
                     reco.append(genre_dict[k][i])
+
+        reco = self.black_list_filtering(reco)
+        reco = self.rm_duplicates(reco)
 
         reco_str = '|'.join(reco[:self.max_nb_reco])
 

@@ -38,6 +38,9 @@ class BecauseYouWatched(AutoAltMaker):
                 else:
                     break
 
+    def test(self):  # TODO remove
+        self.rm_series("SID0049478|SID0049478|SID0049478|SID0052143|SID0046713|SID0048514|SID0045710|SID0044970|SID0050962|SID0046798|SID0030935|SID0038281".split('|'))
+
     def video_byw(self, watched_list_ippan=None,
                   user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/postplay_implicit.csv"):
         """
@@ -56,7 +59,6 @@ class BecauseYouWatched(AutoAltMaker):
         """
         # TODO: using cbf_table, current workaround = postplay_implicit
         # TODO: rerank by BPR, currrent workaround = no reranking <- may need A/B test
-        # TODO: issue, same series sakuhins oppcupy almost whole reco
 
         logging.info("loading sid, name lookup table")
         sid_name_dict = {}
@@ -133,10 +135,13 @@ class BecauseYouWatched(AutoAltMaker):
                         to_del = []
 
                 for SIDs, session_SID in session_dict.items():
-                    # blacklist filtering
+                    watched_SIDs = set(dict_watched_sakuhin.get(userid, []))
+                    # blacklist filtering & watched SID filtering
                     arrs = [sid for sid in SIDs.split("|") if sid not in self.blacklist and
-                            sid not in set(dict_watched_sakuhin.get(userid, []))]
+                            sid not in watched_SIDs]
+
                     arrs = self.rm_series(arrs)
+
                     # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
                     if len(arrs) >= self.min_nb_reco:
                         title = sid_name_dict.get(session_SID, None)
@@ -146,16 +151,11 @@ class BecauseYouWatched(AutoAltMaker):
 
                             w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(arrs)},"
                                     f"{title},{self.alt_info['domain'].values[0]},1\n")
+
+                            # TODO: for MVP, we only make one BYW FET
+                            break
                         else:
                             logging.warning(f"{session_SID} can not find a mapping title")
                 else:
                     pass
-
-
-
-
-
-
-
-
 

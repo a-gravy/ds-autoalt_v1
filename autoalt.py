@@ -5,7 +5,7 @@ Usage:
     autoalt.py byw <feature_public_code>  --blacklist=PATH  --watched_list=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code>  --model=PATH  --blacklist=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py allocate_FETs
-    autoalt.py check_reco --input=PATH --blacklist=PATH
+    autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
 
 Options:
     -h --help Show this screen
@@ -107,7 +107,7 @@ def allocate_fets_to_alt_page(dir_path):
     logging.info("feature_table.csv allocation done")
 
 
-def check_reco(reco_path, blacklist_path):
+def check_reco(reco_path, blacklist_path, allow_blackSIDs=False):
     """
     override, since the reco format is different
     """
@@ -131,16 +131,24 @@ def check_reco(reco_path, blacklist_path):
                 line_counter += 1
                 unique_sid_pool = set()
                 SIDs = line.split(",")[3].split("|")
+
                 for sid in SIDs:
-                    if sid in blacklist:
+                    if not sid:
+                        raise Exception(f"[check_reco]: {reco_path} has a line [{line.rstrip()}] which has no SIDs")
+
+                    if not allow_blackSIDs and sid in blacklist:
                         raise Exception(f"[black_list] {sid} in {line}")
+
                     if sid not in unique_sid_pool:
                         unique_sid_pool.add(sid)
                     else:
                         raise Exception(f"[duplicates] duplicated {sid}")
             else:
                 break
-    logging.info(f"{reco_path} (w/ {line_counter} lines) passes blacklist and duplicates check, good to go")
+    if allow_blackSIDs:
+        logging.info(f"{reco_path} (w/ {line_counter} lines) skips blacklist and passes duplicates check, good to go")
+    else:
+        logging.info(f"{reco_path} (w/ {line_counter} lines) passes blacklist and duplicates check, good to go")
 
 
 def main():

@@ -61,7 +61,7 @@ class AutoAltMaker(object):
             while True:
                 line = r.readline()
                 if line:
-                    arr = line.rstrip().split(",")
+                    arr = line.rstrip().replace('"','').split(",")
                     if arr[1]:
                         series_dict[arr[0]] = arr[1]
                 else:
@@ -74,6 +74,7 @@ class AutoAltMaker(object):
             raise Exception("ERROR, should input series file path")
         series_pool = set()
         reco_item_list = []
+
         for sid in SIDs:
             series_id = self.series_dict.get(sid, None)
             if series_id:
@@ -86,6 +87,7 @@ class AutoAltMaker(object):
                 reco_item_list.append(sid)
         if len(SIDs) - len(reco_item_list) != 0:
             logging.info(f"[rm_series] from {len(SIDs)} to {len(reco_item_list)}")
+
         return reco_item_list
 
 
