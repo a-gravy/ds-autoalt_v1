@@ -42,7 +42,9 @@ class BecauseYouWatched(AutoAltMaker):
         self.rm_series("SID0049478|SID0049478|SID0049478|SID0052143|SID0046713|SID0048514|SID0045710|SID0044970|SID0050962|SID0046798|SID0030935|SID0038281".split('|'))
 
     def video_byw(self, watched_list_ippan=None,
-                  user_sessions_path='data/new_user_sessions.csv', cbf_table_path="data/postplay_implicit.csv"):
+                  user_sessions_path='data/new_user_sessions.csv',
+                  cbf_table_path="data/cbf_rs_list.csv",
+                  postplay_path="data/postplay_implicit.csv"):
         """
         video-video similarity for because you watched(BYW)
 
@@ -57,7 +59,6 @@ class BecauseYouWatched(AutoAltMaker):
 
         :param cbf_table_path: sakuhin_public_code, rs_list
         """
-        # TODO: using cbf_table, current workaround = postplay_implicit
         # TODO: rerank by BPR, currrent workaround = no reranking <- may need A/B test
 
         logging.info("loading sid, name lookup table")
@@ -82,6 +83,24 @@ class BecauseYouWatched(AutoAltMaker):
                     cbf_dict.setdefault(arrs[0], arrs[1])
                 else:
                     break
+
+        logging.info("loading postplay to complement cbf")
+        with open(postplay_path, 'r') as r:  # SID, SID|SID|...
+            while True:
+                line = r.readline()
+                if line:
+                    arrs = line.rstrip().split(",")
+                    cbf_recos = cbf_dict.get(arrs[0], None)
+                    if cbf_recos:
+                        cbf_recos = cbf_recos.split("|")
+                        postplay_recos = [sid for sid in arrs[1].split("|") if sid not in cbf_recos]
+                        cbf_dict[arrs[0]] = '|'.join(cbf_recos+postplay_recos)
+                    else:
+                        cbf_dict.setdefault(arrs[0], arrs[1])
+                else:
+                    break
+        logging.info(f"cbf table has {len(cbf_dict)} items")
+
 
         logging.info("loading watched_list_ippan as user seen items")
         # TODO maintain a seen list for speed up

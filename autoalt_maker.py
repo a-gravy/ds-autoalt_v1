@@ -86,7 +86,7 @@ class AutoAltMaker(object):
             else:
                 reco_item_list.append(sid)
         if len(SIDs) - len(reco_item_list) != 0:
-            logging.info(f"[rm_series] from {len(SIDs)} to {len(reco_item_list)}")
+            logging.debug(f"[rm_series] from {len(SIDs)} to {len(reco_item_list)}")
 
         return reco_item_list
 
