@@ -192,7 +192,7 @@ def main():
     elif arguments['allocate_FETs']:
         allocate_fets_to_alt_page('data/')
     elif arguments['check_reco']:
-        check_reco(arguments["--input"], arguments["--blacklist"])
+        check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
     else:
         raise Exception("Unimplemented ERROR")
 
