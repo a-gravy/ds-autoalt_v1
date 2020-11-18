@@ -11,14 +11,14 @@ class DailyTop(AutoAltMaker):
     def make_alt(self, input_path):
         if self.alt_info['domain'].values[0] == "video":
             self.video_domain_genre(input_path)
-        elif self.alt_info['domain'].values[0] == "semi_adult":
+        elif self.alt_info['domain'].values[0] == "semiadult":
             self.semi_adult(input_path)
         elif self.alt_info['domain'].values[0] == "adult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
             raise Exception("Not implemented yet")
         else:
-            raise Exception("unknown ALT_domain")
+            raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
     def semi_adult(self, input_path):
         SIDs = []  # keep SID unique

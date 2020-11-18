@@ -1,7 +1,7 @@
 """autoalt
 
 Usage:
-    autoalt.py top <feature_public_code>  --input=PATH  --blacklist=PATH [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py byw <feature_public_code>  [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH
@@ -172,7 +172,7 @@ def main():
             return
         if arguments['top']:
             # python autoalt.py top CFET000001 --input data/daily_top_genre.csv --blacklist data/filter_out_sakuhin_implicit.csv  --max_nb_reco 30
-            alt = DailyTop(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
+            alt = DailyTop(alt_info, create_date=today, blacklist_path=arguments.get("--blacklist", None),
                            series_path=arguments["--series"],
                            max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(input_path=arguments["--input"])

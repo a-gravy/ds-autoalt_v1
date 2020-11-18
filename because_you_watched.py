@@ -11,12 +11,12 @@ class BecauseYouWatched(AutoAltMaker):
     def make_alt(self, watched_list_ippan=None):
         if self.alt_info['domain'].values[0] == "video":
             self.video_byw(watched_list_ippan)
-        elif self.alt_info['domain'].values[0] == "semi_adult":
-            self.semi_adult()
+        elif self.alt_info['domain'].values[0] == "semiadult":
+            self.semiadult()
         elif self.alt_info['domain'].values[0] == "book":
             raise Exception("Not implemented yet")
         else:
-            raise Exception("unknown ALT_domain")
+            raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
     # past N days is corresponding to past N days of new_arrival_EP.csv
     def new_user_session_reader(self, input_path="data/new_user_sessions.csv"):
@@ -40,14 +40,15 @@ class BecauseYouWatched(AutoAltMaker):
                 else:
                     break
 
-    def semi_adult(self, user_sessions_path='data/semi_adult_new_user_sessions_15_days.csv',
-                  postplay_path="data/postplay_semiadult_implicit.2020-11-14.csv"):
+    def semiadult(self, user_sessions_path='data/new_user_sessions.csv',
+                  postplay_path="data/semiadult_postplay_implicit.csv",
+                   sid_name_path="data/sid_name_dict.csv"):
         """
         logic: due to lack of data and 作品, don't use watched_list to filter out watched SIDs
         """
         logging.info("loading sid, name lookup table")
         sid_name_dict = {}
-        with open("data/sid_name_dict.csv", "r") as r:
+        with open(sid_name_path, "r") as r:
             r.readline()
             while True:
                 line = r.readline()
@@ -74,8 +75,6 @@ class BecauseYouWatched(AutoAltMaker):
                 else:
                     break
         logging.info(f"cbf table has {len(icf_dict)} items")
-
-        cnt = 0
 
         logging.info("making because_you_watched rows for new session users")
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
