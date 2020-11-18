@@ -34,14 +34,40 @@ class NewArrival(AutoAltMaker):
     def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
-    def make_alt(self, bpr_model_path):
+    def make_alt(self, input_path=None, bpr_model_path=None):
         logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
         if self.alt_info['domain'].values[0] == "video":
             self.new_ep_recommender(bpr_model_path)
+        elif self.alt_info['domain'].values[0] == "semi_adult":
+            self.semi_adult(input_path)
         elif self.alt_info['domain'].values[0] == "book":
             raise Exception("Not implemented yet")
         else:
             raise Exception("unknown ALT_domain")
+
+    def semi_adult(self, input_path):
+        """
+        logic: for semi_adult, only new SID, no new EPs
+        MVP: same new arrival for everyone -> TODO: seredipity
+        :return:
+        """
+        new_SIDs = []
+        with open(input_path,"r") as r:
+            r.readline()
+            for line in r.readlines():
+                new_SID = line.rstrip().replace('"', '')
+                if new_SID not in new_SIDs:
+                    new_SIDs.append(new_SID)
+
+        if len(new_SIDs) == 0:
+            raise Exception("[ERROR] input: {input_path} has no data")
+
+        reco_str = '|'.join(new_SIDs[:self.max_nb_reco])
+
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['autoalt'])
+            w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
 
     def new_ep_recommender(self, bpr_model_path):
         """

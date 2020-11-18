@@ -1,8 +1,8 @@
 import logging
-from utils import file_to_list
 from autoalt_maker import AutoAltMaker
 
 logging.basicConfig(level=logging.INFO)
+
 
 class BecauseYouWatched(AutoAltMaker):
     def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
@@ -11,6 +11,8 @@ class BecauseYouWatched(AutoAltMaker):
     def make_alt(self, watched_list_ippan=None):
         if self.alt_info['domain'].values[0] == "video":
             self.video_byw(watched_list_ippan)
+        elif self.alt_info['domain'].values[0] == "semi_adult":
+            self.semi_adult()
         elif self.alt_info['domain'].values[0] == "book":
             raise Exception("Not implemented yet")
         else:
@@ -38,8 +40,100 @@ class BecauseYouWatched(AutoAltMaker):
                 else:
                     break
 
-    def test(self):  # TODO remove
-        self.rm_series("SID0049478|SID0049478|SID0049478|SID0052143|SID0046713|SID0048514|SID0045710|SID0044970|SID0050962|SID0046798|SID0030935|SID0038281".split('|'))
+    def semi_adult(self, user_sessions_path='data/semi_adult_new_user_sessions_15_days.csv',
+                  postplay_path="data/postplay_semiadult_implicit.2020-11-14.csv"):
+        """
+        logic: due to lack of data and 作品, don't use watched_list to filter out watched SIDs
+        """
+        logging.info("loading sid, name lookup table")
+        sid_name_dict = {}
+        with open("data/sid_name_dict.csv", "r") as r:
+            r.readline()
+            while True:
+                line = r.readline()
+                if line:
+                    arr = line.rstrip().split(",")
+                    sid_name_dict.setdefault(arr[0], arr[1])
+                else:
+                    break
+
+        logging.info("loading postplay as ICF reco")
+        icf_dict = {}
+        with open(postplay_path, 'r') as r:  # SID, SID|SID|...
+            while True:
+                line = r.readline()
+                if line:
+                    arrs = line.rstrip().split(",")
+                    cbf_recos = icf_dict.get(arrs[0], None)
+                    if cbf_recos:
+                        cbf_recos = cbf_recos.split("|")
+                        postplay_recos = [sid for sid in arrs[1].split("|") if sid not in cbf_recos]
+                        icf_dict[arrs[0]] = '|'.join(cbf_recos + postplay_recos)
+                    else:
+                        icf_dict.setdefault(arrs[0], arrs[1])
+                else:
+                    break
+        logging.info(f"cbf table has {len(icf_dict)} items")
+
+        cnt = 0
+
+        logging.info("making because_you_watched rows for new session users")
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['autoalt'])
+
+            for line_counter, (userid, session_sids) in enumerate(self.new_user_session_reader(input_path=user_sessions_path)):
+                if line_counter%10000 == 1:
+                    logging.info(f"{line_counter} lines done")
+
+                # check the similarity between cbf_rs_lists of SIDs
+                # to record which session_sids are alive after removing similar SIDs.  SIDs:session_id
+                session_dict = {icf_dict[session_sid]: session_sid for session_sid in session_sids if
+                                icf_dict.get(session_sid, None)}
+                cbf_rs_lists = [k.split("|") for k, v in session_dict.items()]
+                similar_threshold = 0.5
+                to_del = []
+
+                while True:
+                    if len(cbf_rs_lists) <= 1:
+                        break
+
+                    for i in range(len(cbf_rs_lists) - 1):
+                        for j in range(i + 1, len(cbf_rs_lists)):
+                            sa = set(cbf_rs_lists[i])
+                            sb = set(cbf_rs_lists[j])
+                            if max(len(sa & sb) / len(sa), len(sa & sb) / len(sb)) > similar_threshold:
+                                to_del.append(cbf_rs_lists[j])
+                        if to_del:
+                            break
+                    else:
+                        break
+
+                    if to_del:
+                        for e in to_del:
+                            cbf_rs_lists.remove(e)
+                            del session_dict["|".join(e)]
+                        to_del = []
+
+                for SIDs, session_SID in session_dict.items():
+                    # blacklist filtering & watched SID filtering
+                    arrs = [sid for sid in SIDs.split("|")]
+
+                    # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
+                    if len(arrs) >= self.min_nb_reco:
+                        title = sid_name_dict.get(session_SID, None)
+                        if title:
+                            title = title.rstrip().replace('"', '').replace("'", "")
+                            title = self.alt_info['feature_title'].values[0].replace("○○", title)
+
+                            w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(arrs)},"
+                                    f"{title},{self.alt_info['domain'].values[0]},1\n")
+
+                            # TODO: for MVP, we only make one BYW FET
+                            break
+                        else:
+                            logging.warning(f"{session_SID} can not find a mapping title")
+                else:
+                    pass
 
     def video_byw(self, watched_list_ippan=None,
                   user_sessions_path='data/new_user_sessions.csv',

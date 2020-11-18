@@ -197,6 +197,18 @@ def get_sth_tidb():
     query.to_csv(in_sql.format(n_days), "data/{}.csv".format(task.format(n_days)), True, preoperator=preoperator)
 
 
+def get_sth_semi_tidb():
+    #tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'  # version 3
+    tidb_conn_string = 'mysql://reco:reco@10.232.201.38:3306/recodb?charset=utf8'  # version 4
+    # task = "new_user_sessions_{}_days"
+    task = "new_user_sessions_{}_days"  # "daily_top" "new_user_sessions_{}_days"
+    n_days = 15
+
+    in_sql = get_filepath_content(str(Path("workspace/semi_adult/{}.sql".format(task))))
+    query = mysql(tidb_conn_string)
+    preoperator = "set group_concat_max_len = 1024000;"  # 4294967295
+    query.to_csv(in_sql.format(n_days), "data/semi_adult_{}.csv".format(task.format(n_days)), True, preoperator=preoperator)
+
 def push_2_dw():
     #_, tmp_file_path = tempfile.mkstemp(dir="/data")
     #from_file = s3_root_location + f"anikore_sid_matching.csv.gz"
@@ -209,7 +221,7 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    get_sth_tidb()
+    get_sth_semi_tidb()
     # get_sth_postegres()
 
 

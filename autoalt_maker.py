@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class AutoAltMaker(object):
-    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
+    def __init__(self, alt_info, create_date, blacklist_path=None, series_path=None, max_nb_reco=30, min_nb_reco=3):
         self.alt_info = alt_info
         self.create_date = create_date
         self.max_nb_reco = int(max_nb_reco)
@@ -17,14 +17,17 @@ class AutoAltMaker(object):
             self.config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
         self.blacklist = set()
-        with open(blacklist_path, "r") as r:
-            while True:
-                line = r.readline()
-                if line:
-                    self.blacklist.add(line.rstrip())
-                else:
-                    break
-        logging.info(f"{len(self.blacklist)} blacklist SIDs load")
+        if blacklist_path:
+            with open(blacklist_path, "r") as r:
+                while True:
+                    line = r.readline()
+                    if line:
+                        self.blacklist.add(line.rstrip())
+                    else:
+                        break
+            logging.info(f"{len(self.blacklist)} blacklist SIDs load")
+        else:
+            logging.info("no blacklist filtering")
 
         # series dict
         if series_path:

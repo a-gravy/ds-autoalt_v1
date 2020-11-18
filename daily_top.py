@@ -3,6 +3,7 @@ from autoalt_maker import AutoAltMaker
 
 logging.basicConfig(level=logging.INFO)
 
+
 class DailyTop(AutoAltMaker):
     def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
@@ -10,10 +11,39 @@ class DailyTop(AutoAltMaker):
     def make_alt(self, input_path):
         if self.alt_info['domain'].values[0] == "video":
             self.video_domain_genre(input_path)
+        elif self.alt_info['domain'].values[0] == "semi_adult":
+            self.semi_adult(input_path)
+        elif self.alt_info['domain'].values[0] == "adult":
+            raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
             raise Exception("Not implemented yet")
         else:
             raise Exception("unknown ALT_domain")
+
+    def semi_adult(self, input_path):
+        SIDs = []  # keep SID unique
+
+        with open(input_path, 'r') as r:
+            r.readline()  # skip the first line
+            while True:
+                line = r.readline()  # "episode_code","SID","display_name","main_genre_code","nb_watch"
+                if line:  # ep,SID,nb_watch
+                    arr = line.rstrip().replace('"', '').split(",")
+                    if arr[1] not in SIDs:
+                        SIDs.append(arr[1])
+                else:
+                    break
+
+        if not SIDs:
+            raise Exception(f"ERROR:{input_path} has no data")
+        else:
+            logging.info(f"read {len(SIDs)} lines, going to make FET daily_top ")
+
+        reco_str = '|'.join(SIDs[:self.max_nb_reco])
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['autoalt'])
+            w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
 
     def video_domain_genre(self, input_path):
         """

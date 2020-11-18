@@ -2,15 +2,16 @@
 
 Usage:
     autoalt.py top <feature_public_code>  --input=PATH  --blacklist=PATH [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py byw <feature_public_code>  --blacklist=PATH  --watched_list=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py new_arrival <feature_public_code>  --model=PATH  --blacklist=PATH  [--max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py allocate_FETs
+    autoalt.py byw <feature_public_code>  [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py allocate_FETs --input=PATH --output=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
 
 Options:
     -h --help Show this screen
     --version
-    --input PATH          File path of input
+    --input PATH          File or dir path of input
+    --output PATH         File or dir path of output
     --model PATH          File path location of the trained model
     --top_n=<tn>          Number of recommended items. [default: 10]
     --max_nb_reco=<nbr>   Maximal number of items in one ALT [default: 30]
@@ -53,10 +54,10 @@ with open("config.yaml") as f:
     config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 
-def allocate_fets_to_alt_page(dir_path):
+def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
     # allocate files in dir_path to feature_table.csv
 
-    feature_table_writer = open("feature_table.csv", 'w')
+    feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
 
     for file in os.listdir(dir_path):
@@ -64,7 +65,7 @@ def allocate_fets_to_alt_page(dir_path):
         if file == 'dim_autoalt.csv':
             logging.info(f'skip {file}')
             continue
-        elif 'JFET' in file or 'CFET' in file:  # 自動生成ALTs
+        elif 'JFET' in file or 'CFET' in file or 'SAFET' in file:  # 自動生成ALTs
             logging.info(f'processing {file}')
             with open(os.path.join(dir_path, file), "r") as r:
                 r.readline()
@@ -101,7 +102,10 @@ def allocate_fets_to_alt_page(dir_path):
                         # don't save title info
                         # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
                         # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                        feature_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,{arr[8]},{arr[7]},{arr[5]},{arr[6]}\n")
+                        if "semi_adult" in file:
+                            feature_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semi_adult,{arr[7]},{arr[5]},{arr[6]}\n")
+                        else:  # ippan format:
+                            feature_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,{arr[8]},{arr[7]},{arr[5]},{arr[6]}\n")
                     else:
                         break
     logging.info("feature_table.csv allocation done")
@@ -177,7 +181,7 @@ def main():
             alt = NewArrival(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
                              series_path=arguments["--series"],
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(bpr_model_path=arguments["--model"])
+            alt.make_alt(input_path=arguments['--input'], bpr_model_path=arguments["--model"])
         elif arguments["byw"]:
             # python autoalt.py  byw JFET000002 --blacklist data/filter_out_sakuhin_implicit.csv  --watched_list data/watched_list_ippan.csv --series data/sid_series.csv
             alt = BecauseYouWatched(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
@@ -190,7 +194,7 @@ def main():
             raise Exception("Unimplemented ALT")
 
     elif arguments['allocate_FETs']:
-        allocate_fets_to_alt_page('data/')
+        allocate_fets_to_alt_page(arguments['--input'], arguments['--output'])
     elif arguments['check_reco']:
         check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
     else:
