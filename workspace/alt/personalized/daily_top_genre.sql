@@ -7,7 +7,7 @@ select
 from recodb.fues_dim_user_playback_session sess
          inner join cmsdb.episode ep on sess.episode_code = ep.EPISODE_PUBLIC_CODE
          inner join cmsdb.sakuhin sakuhin on ep.SAKUHIN_ID = sakuhin.SAKUHIN_ID
-where sess.windowstart > now() - interval 1 day
+where sess.windowstart > now() - interval {} day
   and sess.windowlength > 2
 group by sess.episode_code
 order by nb_watch desc

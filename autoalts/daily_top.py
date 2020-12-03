@@ -1,5 +1,5 @@
 import logging
-from autoalt_maker import AutoAltMaker
+from autoalts.autoalt_maker import AutoAltMaker
 
 logging.basicConfig(level=logging.INFO)
 

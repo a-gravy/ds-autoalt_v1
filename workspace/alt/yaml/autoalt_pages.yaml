@@ -1,0 +1,33 @@
+tables:
+  - id: autoalt_MAINPAGE_page
+    table: autoalt_pages
+    keyspace: starship
+    file: s3://unext-datascience/alts/autoalt_MAINPAGE_page.csv.gz
+    sstable: gs://starship-storage/starship/keep/cassandra/unext/autoalt_MAINPAGE_page_sstable.tar.gz
+    primaryKey: user_multi_account_id, page_public_code
+    compaction: "{'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}"
+    compression: "{'chunk_length_kb': '32', 'sstable_compression': 'LZ4Compressor'}"
+    ttl: 6048000
+    columns:
+    - col: user_multi_account_id
+    - col: page_public_code
+    - col: create_date
+      type: int
+    - col: feature_public_codes
+      maxChars: 40000
+  - id: autoalt_semidadult_page
+    table: autoalt_pages
+    keyspace: starship
+    file: s3://unext-datascience/alts/autoalt_semidadult_page.csv.gz
+    sstable: gs://starship-storage/starship/keep/cassandra/unext/autoalt_semidadult_page_sstable.tar.gz
+    primaryKey: user_multi_account_id, page_public_code
+    compaction: "{'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}"
+    compression: "{'chunk_length_kb': '32', 'sstable_compression': 'LZ4Compressor'}"
+    ttl: 6048000
+    columns:
+    - col: user_multi_account_id
+    - col: page_public_code
+    - col: create_date
+      type: int
+    - col: feature_public_codes
+      maxChars: 40000

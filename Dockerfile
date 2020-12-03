@@ -11,6 +11,7 @@ COPY requirements.txt /app
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY *.py /app/
+COPY autoalts /app/autoalts
 COPY config.yaml /app/
 
 # RUN python  setup.py  sdist  bdist_wheel && pip install dist/*.whl

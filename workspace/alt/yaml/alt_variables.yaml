@@ -1,0 +1,25 @@
+tidb_conn_string: 'mysql://reco:reco@10.232.201.38:3306/recodb?charset=utf8'
+s3_alt_dir: "s3://unext-datascience/alts/"
+s3_ippan_alt_dir: "s3://unext-datascience/alts/ippan/"
+# s3_semiadult_alt_dir: "s3://unext-datascience/alts/semiadult/"
+s3_cbf_dir: "s3://unext-datascience/cbf_rs/"
+s3_semiadult_dir: "s3://unext-datascience-prod/jobs/semiadult/"
+
+
+s3:
+  root: "s3://unext-datascience/alts/"
+  yaml: "s3://unext-datascience/alts/yaml/"
+  ippan_video: "s3://unext-datascience/alts/ippan_video/"
+  semiadult: "s3://unext-datascience/alts/semiadult/"
+
+aws_image:
+  altmaker: "938175221734.dkr.ecr.ap-northeast-1.amazonaws.com/datascience-dev/ds-altmaker"
+  page_generation: "938175221734.dkr.ecr.ap-northeast-1.amazonaws.com/datascience-dev/ds-page_generation"
+
+
+interval:
+  daily_top: '2'    # TODO: 2 for deal w/ current unstable TIDB
+  new_arrival: '7'  # unit: day
+  byw: '7'  # unit: day
+  genre: '100'  # unit:day
+

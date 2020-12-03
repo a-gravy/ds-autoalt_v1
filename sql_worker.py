@@ -6,6 +6,7 @@ ecent_30day are the most recent sakuhin
 
 """
 import tempfile
+import os
 from pathlib import Path
 from dstools.utils import get_filepath_content, send_file_to_dest
 from dstools.connectors.postgres import Query as PostgresQuery
@@ -176,9 +177,9 @@ def demo_get_dim_table():
 
 def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
-    task = "dim_autoalt"  # "unext_sakuhin_meta" "sid_name_dict"
+    task = "daily_top"  # "unext_sakuhin_meta" "sid_name_dict"
 
-    in_path = str(Path("workspace/alt/personalized/{}.sql".format(task)))
+    in_path = os.path.join("workspace/alt/ippan_video/td/", f"{task}.sql")
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)

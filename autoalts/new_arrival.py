@@ -19,13 +19,10 @@ two approaches
 """
 
 import pandas as pd
-import pickle
-import os, sys, tempfile, logging, time
-import numpy as np
+import logging
 import time
 import operator
-import yaml
-from autoalt_maker import AutoAltMaker
+from autoalts.autoalt_maker import AutoAltMaker
 
 logging.basicConfig(level=logging.INFO)
 

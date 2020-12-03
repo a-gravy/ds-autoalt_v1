@@ -93,7 +93,6 @@ class AutoAltMaker(object):
 
         return reco_item_list
 
-
     def check_reco(self, reco_path):
         unique_sid_pool = set()
         # user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt
