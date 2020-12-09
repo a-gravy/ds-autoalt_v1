@@ -15,6 +15,7 @@ from dstools.connectors.s3 import S3
 
 dw_conn_string = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw?charset=utf8"
 s3_root_location = "s3://unext-datascience/alts/"
+cmsdb = 'mysql://cmsteam:Z1NwN6e0@10.105.22.207:3306/cmsdb?charset=utf8'
 
 def get_newarrival():
     in_path = str(Path("workspace/alt/recent_30day.sql"))
@@ -185,6 +186,13 @@ def get_sth_postegres():
     query.to_csv(in_sql, "data/{}.csv".format(task), True)
 
 
+def get_sth_cmsdb():
+    task = "execlusive"  # workspace/alt/coldstart/execlusive.sql
+    in_sql = get_filepath_content(str(Path(f"workspace/alt/coldstart//{task}.sql")))
+    query = mysql(cmsdb)
+    query.to_csv(in_sql, "data/{}.csv".format(task), True)
+
+
 def get_sth_tidb():
     #tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'  # version 3
     tidb_conn_string = 'mysql://reco:reco@10.232.201.38:3306/recodb?charset=utf8'  # version 4
@@ -210,6 +218,7 @@ def get_sth_semi_tidb():
     preoperator = "set group_concat_max_len = 1024000;"  # 4294967295
     query.to_csv(in_sql.format(n_days), "data/semi_adult_{}.csv".format(task.format(n_days)), True, preoperator=preoperator)
 
+
 def push_2_dw():
     #_, tmp_file_path = tempfile.mkstemp(dir="/data")
     #from_file = s3_root_location + f"anikore_sid_matching.csv.gz"
@@ -222,7 +231,7 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    get_sth_semi_tidb()
+    get_sth_cmsdb()
     # get_sth_postegres()
 
 

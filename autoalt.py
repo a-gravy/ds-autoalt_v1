@@ -7,6 +7,7 @@ Usage:
     autoalt.py allocate_FETs --input=PATH --output=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
     autoalt.py demo_candidates --input=PATH --output=PATH
+    autoalt.py rm_series --input=PATH --output=PATH --series=PATH --target_users=PATH
 
 Options:
     -h --help Show this screen
@@ -47,7 +48,7 @@ import yaml
 from autoalts.daily_top import DailyTop
 from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
-from autoalts.utils import make_demo_candidates
+from autoalts.utils import make_demo_candidates, toppick_rm_series
 
 logging.basicConfig(level=logging.INFO)
 
@@ -138,51 +139,6 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                     break
 
     feature_table_writer.close()
-    """
-    elif 'JFET' in file or 'CFET' in file:  # 自動生成ALTs
-        logging.info(f'processing {file}')
-        with open(os.path.join(dir_path, file), "r") as r:
-            r.readline()
-            while True:
-                line = r.readline()
-                if line:
-                    feature_table_writer.write(line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n')
-                else:
-                    break
-    elif 'toppick' in file:  # TODO: this is workaround solution, eventually FET_toppick will be the same format as other 自動生成FETs
-        logging.info(f'processing {file}')
-        with open(os.path.join(dir_path, file), "r") as r:
-            r.readline()
-            while True:
-                line = r.readline()
-                if line:
-                    arr = line.rstrip().split(',')
-                    feature_table_writer.write(f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},new あなたへのおすすめ,ippan_video,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n')
-                else:
-                    break
-    elif "choutatsu" in file:  # 調達部FETs 
-        logging.info(f'processing {file}')
-        with open(os.path.join(dir_path, file), "r") as r:
-            r.readline()
-            while True:
-                line = r.readline()
-                if line:
-                    arr = line.rstrip().split(',')
-                    if len(arr) < 11:  # somehow some lines are empty
-                        continue
-                    elif len(arr) > 11:
-                        arr[10] = ' '.join(arr[10:])  # for those lines w/ too more "," ->  join them
-
-                    # don't save title info
-                    # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                    # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                    if "semiadult" in file:
-                        feature_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n")
-                    elif "ippan" in file:  # TODO, current ippan is ippan_video
-                        feature_table_writer.write(f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,ippan_video,{arr[7]},{arr[5]},{arr[6]}\n")
-                else:
-                    break
-    """
 
     logging.info("feature_table.csv allocation done")
 
@@ -275,6 +231,9 @@ def main():
         check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
     elif arguments['demo_candidates']:
         make_demo_candidates(feature_table_path=arguments['--input'], output_path=arguments['--output'])
+    elif arguments['rm_series']:
+        toppick_rm_series(series_path=arguments['--series'], input=arguments['--input'], output=arguments['--output'],
+                          target_users_path=arguments['--target_users'])
     else:
         raise Exception("Unimplemented ERROR")
 
