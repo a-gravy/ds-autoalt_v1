@@ -186,11 +186,12 @@ def get_sth_postegres():
     query.to_csv(in_sql, "data/{}.csv".format(task), True)
 
 
-def get_sth_cmsdb():
-    task = "execlusive"  # workspace/alt/coldstart/execlusive.sql
-    in_sql = get_filepath_content(str(Path(f"workspace/alt/coldstart//{task}.sql")))
+def get_sth_cmsdb(v=None):
+    task = "exclusive_ADRAMA"  # f"exclusive_genre"  # workspace/alt/coldstart/execlusive.sql
+    in_sql = get_filepath_content(str(Path(f"workspace/alt/coldstart/cms/{task}.sql")))
+    in_sql = in_sql.format(v)
     query = mysql(cmsdb)
-    query.to_csv(in_sql, "data/{}.csv".format(task), True)
+    query.to_csv(in_sql, "data/{}_{}.csv".format(task, v), True)
 
 
 def get_sth_tidb():
@@ -231,7 +232,7 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    get_sth_cmsdb()
+    get_sth_cmsdb('台湾')
     # get_sth_postegres()
 
 

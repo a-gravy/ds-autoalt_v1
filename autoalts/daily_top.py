@@ -1,4 +1,5 @@
 import logging
+import operator
 from autoalts.autoalt_maker import AutoAltMaker
 
 logging.basicConfig(level=logging.INFO)
@@ -9,8 +10,11 @@ class DailyTop(AutoAltMaker):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
     def make_alt(self, input_path):
-        if self.alt_info['domain'].values[0] == "video":
-            self.video_domain_genre(input_path)
+        if self.alt_info['domain'].values[0] == "ippan_video":
+            if "SFET" in self.alt_info['feature_public_code'].values[0]:  # TODO: tmp place for coldstart
+                self.video_domain(input_path)
+            else:
+                self.video_domain_genre(input_path)
         elif self.alt_info['domain'].values[0] == "semiadult":
             self.semi_adult(input_path)
         elif self.alt_info['domain'].values[0] == "adult":
@@ -102,51 +106,32 @@ class DailyTop(AutoAltMaker):
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
                     f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
 
-    def video_domain(self, input_path="data/daily_top_genre.csv"):
+    def video_domain(self, input_path):
         """
         logic:
-        make ALT_daily_top by order of daily_top.csv
+        make ALT_daily_top by order of nb_watch sum
 
         """
-        pass
-        """
-        SIDs = []  # keep SID unique
-        with open(input_path, 'r') as r:
-            r.readline()  # skip the first line
+        sid_nb = {}  # SID: nb of watch
+
+        # accumulate nb_of_watch of each EP
+        with open(input_path, "r") as r:
+            r.readline()
             while True:
                 line = r.readline()
-                if line:  # ep,SID,nb_watch
-                    SID = line.rstrip().split(",")[1].replace('"', '')
-                    if SID not in SIDs:
-                        SIDs.append(SID)
-
-                        if len(SIDs) >= top_N:
-                            break
+                if line:
+                    arr = line.rstrip().split(",")
+                    sid_nb[arr[1]] = sid_nb.setdefault(arr[1], 0) + int(arr[-1])
                 else:
                     break
 
-        SIDs = list(SIDs)
-        SIDs_str = '|'.join(SIDs[:int(top_N)])
+        reco = [k for k, v in sorted(sid_nb.items(), key=operator.itemgetter(1), reverse=True)]
+        reco = self.black_list_filtering(reco)
+        reco = self.rm_duplicates(reco)
 
-        # just make one row for user "COMMON"
-        with open(f"{alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(config['header']['autoalt'])
-            w.write(f"COMMON,{alt_info['feature_public_code'].values[0]},{create_date},{SIDs_str},"
-                    f"{alt_info['feature_title'].values[0]},{alt_info['domain'].values[0]},1\n")
-        """
-        """ 
-        # this version make one row for each user
-        user_count = 0
-        with open(f"{feature_public_code}-{ALT_domain}.csv", "w") as w:
-            with open("data/target_users.csv", "r") as r:
-                r.readline()
-                while True:
-                    line = r.readline()
-                    if line:
-                        user_count += 1
-                        arr = line.rstrip().split(",")
-                        w.write("{},{},{:.4f}\n".format(arr[1], SIDs_str, 1.0))
-                    else:
-                        logging.info(f"{user_count} users' daily_top are updated")
-                        break
-        """
+        reco_str = '|'.join(reco[:self.max_nb_reco])
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['autoalt'])
+            # TODO: user_multi_account_id
+            w.write(f"exclusive,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")

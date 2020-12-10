@@ -9,7 +9,7 @@ class BecauseYouWatched(AutoAltMaker):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
     def make_alt(self, watched_list_ippan=None):
-        if self.alt_info['domain'].values[0] == "video":
+        if self.alt_info['domain'].values[0] == "ippan_video":
             self.video_byw(watched_list_ippan)
         elif self.alt_info['domain'].values[0] == "semiadult":
             self.semiadult()
@@ -162,7 +162,7 @@ class BecauseYouWatched(AutoAltMaker):
                 line = r.readline()
                 if line:
                     arr = line.rstrip().split(",")
-                    sid_name_dict.setdefault(arr[0], arr[1])
+                    sid_name_dict.setdefault(arr[0], " ".join(arr[1:]))  # remove , in title to prevent bugs
                 else:
                     break
 

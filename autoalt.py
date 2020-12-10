@@ -8,6 +8,7 @@ Usage:
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
     autoalt.py demo_candidates --input=PATH --output=PATH
     autoalt.py rm_series --input=PATH --output=PATH --series=PATH --target_users=PATH
+    autoalt.py coldstart <feature_public_code> --input=PATH
 
 Options:
     -h --help Show this screen
@@ -29,18 +30,9 @@ Options:
 
 
 """
-"""
-output of each ALT
-file_name:<feature_public_code>-<ALT_domain>.csv 
-
-format:  
-* no head
-* user_multi_account_id,SID|SID|...  , alt_score
-* byw: user_multi_account_id,byw_sid,SID|SID|...  ,alt_score
-* genre: user_multi_account_id,type-VARIETY-nations-日本,SID|SID|...,alt_score(from genre, not bpr)
-
-"""
-import os, logging, time
+import os
+import logging
+import time
 from datetime import date
 import pandas as pd
 from docopt import docopt
@@ -48,6 +40,7 @@ import yaml
 from autoalts.daily_top import DailyTop
 from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
+from autoalts.coldstart import ColdStartExclusive
 from autoalts.utils import make_demo_candidates, toppick_rm_series
 
 logging.basicConfig(level=logging.INFO)
@@ -121,9 +114,9 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                 # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
                 # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
                 if "semiadult" in file:
-                        return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
+                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
                 elif "ippan" in file:  # TODO, current ippan is ippan_video
-                        return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,ippan_video,{arr[7]},{arr[5]},{arr[6]}\n"
+                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,ippan_video,{arr[7]},{arr[5]},{arr[6]}\n"
 
             output_func = choutatsu_format
 
@@ -195,7 +188,7 @@ def main():
     today = date.today().strftime("%Y%m%d")  # e.g. 20200915
 
     # read dim_autoalt.csv
-    if any([arguments['top'], arguments['new_arrival'], arguments['byw']]):
+    if any([arguments['top'], arguments['new_arrival'], arguments['byw'], arguments['coldstart']]):
         df = pd.read_csv("data/dim_autoalt.csv")
         alt_info = df[df['feature_public_code'] == arguments["<feature_public_code>"]]
 
@@ -220,6 +213,9 @@ def main():
                                     series_path=arguments["--series"],
                                     max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(arguments["--watched_list"])
+        elif arguments['coldstart']:
+            alt = ColdStartExclusive(alt_info, create_date=today)
+            alt.make_alt(input=arguments["--input"])
         elif arguments['genre_row']:
             raise Exception("genre_row is invalid using current bad TAGs :(")
         else:
@@ -242,30 +238,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-"""
-        # python altmaker.py genre_row ALT_genrerow video --model ../data/bpr/implicit_bpr.model.2020-06-06 --target_users data/target_users.csv
-        kwargs = {
-            "feature_public_code": arguments["<feature_public_code>"],
-            "ALT_domain": arguments["<ALT_domain>"],
-            "nb_alt": int(arguments["--nb_alt"]),
-            "max_nb_reco": int(arguments["--max_nb_reco"]),
-            "min_nb_reco": int(arguments["--min_nb_reco"]),
-            "unext_sakuhin_meta_path": "data/unext_sakuhin_meta.csv",
-            "meta_lookup_path": "data/unext_sakuhin_meta_lookup.csv",
-            "user_sessions_path": "data/user_sessions.csv"
-        }
-        genre_row_maker(**kwargs)  # 3 genre alts for every user
-        logging.info("rerank SIDs for personalization")
-        kwargs = {
-            "model_path": arguments["--model"],
-            "target_users_path": arguments.get("--target_users", None),
-            "target_items_path": arguments.get("--target_items", None),
-            "filter_items": arguments.get("--filter_items", None),
-            "watched_list_rerank": arguments.get("--watched_list", None),
-            "max_nb_reco": int(arguments["--max_nb_reco"]),
-            "min_nb_reco": int(arguments["--min_nb_reco"]),
-        }
-        alt_reranker.alt_reranker(**kwargs).genre_rows(input_path="data/genre_rows.csv",
-                                                       output_path=f'{arguments["<feature_public_code>"]}-{arguments["<ALT_domain>"]}.csv')
-"""

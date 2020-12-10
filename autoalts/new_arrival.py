@@ -33,7 +33,7 @@ class NewArrival(AutoAltMaker):
 
     def make_alt(self, input_path=None, bpr_model_path=None):
         logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
-        if self.alt_info['domain'].values[0] == "video":
+        if self.alt_info['domain'].values[0] == "ippan_video":
             self.new_ep_recommender(bpr_model_path)
         elif self.alt_info['domain'].values[0] == "semiadult":
             self.semi_adult(input_path)
@@ -113,7 +113,6 @@ class NewArrival(AutoAltMaker):
                         f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
                         f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
                         # new_ep_reco.setdefault(userid, {sid:score.item()+score_base for sid, score in zip(sid_list, score_list)})
-
         # TODO: update N past days daily or just one day daily?
 
     def rerank_seen(self, model,
@@ -253,4 +252,3 @@ class NewArrival(AutoAltMaker):
                     score_list.append('{:.3f}'.format(v))
                 w.write(f'{user_id},{"|".join(sid_list)},1.0\n')
         """
-
