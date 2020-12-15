@@ -5,11 +5,12 @@ logging.basicConfig(level=logging.INFO)
 
 
 class BecauseYouWatched(AutoAltMaker):
-    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
+    def __init__(self, alt_info, create_date, blacklist_path, sid_name_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
+        self.sid_name_dict = self.read_sid_name(sid_name_path)
 
     def make_alt(self, watched_list_ippan=None):
-        if self.alt_info['domain'].values[0] == "ippan_video":
+        if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.video_byw(watched_list_ippan)
         elif self.alt_info['domain'].values[0] == "semiadult":
             self.semiadult()
@@ -40,12 +41,7 @@ class BecauseYouWatched(AutoAltMaker):
                 else:
                     break
 
-    def semiadult(self, user_sessions_path='data/new_user_sessions.csv',
-                  postplay_path="data/semiadult_postplay_implicit.csv",
-                   sid_name_path="data/sid_name_dict.csv"):
-        """
-        logic: due to lack of data and 作品, don't use watched_list to filter out watched SIDs
-        """
+    def read_sid_name(self, sid_name_path):
         logging.info("loading sid, name lookup table")
         sid_name_dict = {}
         with open(sid_name_path, "r") as r:
@@ -54,10 +50,17 @@ class BecauseYouWatched(AutoAltMaker):
                 line = r.readline()
                 if line:
                     arr = line.rstrip().split(",")
-                    sid_name_dict.setdefault(arr[0], arr[1])
+                    sid_name_dict.setdefault(arr[0], " ".join(arr[1:]))  # remove , in title to prevent bugs
                 else:
                     break
+        return sid_name_dict
 
+    def semiadult(self, user_sessions_path='data/new_user_sessions.csv',
+                  postplay_path="data/semiadult_postplay_implicit.csv",
+                  sid_name_path="data/sid_name_dict.csv"):
+        """
+        logic: due to lack of data and 作品, don't use watched_list to filter out watched SIDs
+        """
         logging.info("loading postplay as ICF reco")
         icf_dict = {}
         with open(postplay_path, 'r') as r:  # SID, SID|SID|...
@@ -79,10 +82,9 @@ class BecauseYouWatched(AutoAltMaker):
         logging.info("making because_you_watched rows for new session users")
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['autoalt'])
-
-            for line_counter, (userid, session_sids) in enumerate(self.new_user_session_reader(input_path=user_sessions_path)):
-                if line_counter%10000 == 1:
-                    logging.info(f"{line_counter} lines done")
+            line_counter = 0
+            for (userid, session_sids) in self.new_user_session_reader(input_path=user_sessions_path):
+                line_counter += 1
 
                 # check the similarity between cbf_rs_lists of SIDs
                 # to record which session_sids are alive after removing similar SIDs.  SIDs:session_id
@@ -119,7 +121,7 @@ class BecauseYouWatched(AutoAltMaker):
 
                     # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
                     if len(arrs) >= self.min_nb_reco:
-                        title = sid_name_dict.get(session_SID, None)
+                        title = self.sid_name_dict.get(session_SID, None)
                         if title:
                             title = title.rstrip().replace('"', '').replace("'", "")
                             title = self.alt_info['feature_title'].values[0].replace("○○", title)
@@ -133,11 +135,13 @@ class BecauseYouWatched(AutoAltMaker):
                             logging.warning(f"{session_SID} can not find a mapping title")
                 else:
                     pass
+            logging.info(f"{line_counter} lines processed")
 
     def video_byw(self, watched_list_ippan=None,
                   user_sessions_path='data/new_user_sessions.csv',
                   cbf_table_path="data/cbf_rs_list.csv",
-                  postplay_path="data/postplay_implicit.csv"):
+                  postplay_path="data/postplay_implicit.csv",
+                  sid_name_path="data/sid_name_dict.csv"):
         """
         video-video similarity for because you watched(BYW)
 
@@ -153,18 +157,6 @@ class BecauseYouWatched(AutoAltMaker):
         :param cbf_table_path: sakuhin_public_code, rs_list
         """
         # TODO: rerank by BPR, currrent workaround = no reranking <- may need A/B test
-
-        logging.info("loading sid, name lookup table")
-        sid_name_dict = {}
-        with open("data/sid_name_dict.csv", "r") as r:
-            r.readline()
-            while True:
-                line = r.readline()
-                if line:
-                    arr = line.rstrip().split(",")
-                    sid_name_dict.setdefault(arr[0], " ".join(arr[1:]))  # remove , in title to prevent bugs
-                else:
-                    break
 
         logging.info("loading content-based filtering recommendation")
         cbf_dict = {}
@@ -256,7 +248,7 @@ class BecauseYouWatched(AutoAltMaker):
 
                     # TODO: current order of SIDs is based on cbf scores, we can mix cbf score with user bpr score
                     if len(arrs) >= self.min_nb_reco:
-                        title = sid_name_dict.get(session_SID, None)
+                        title = self.sid_name_dict.get(session_SID, None)
                         if title:
                             title = title.rstrip().replace('"','').replace("'","")
                             title = self.alt_info['feature_title'].values[0].replace("○○", title)

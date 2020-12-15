@@ -180,7 +180,7 @@ def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
     task = "daily_top"  # "unext_sakuhin_meta" "sid_name_dict"
 
-    in_path = os.path.join("workspace/alt/ippan_video/td/", f"{task}.sql")
+    in_path = os.path.join("workspace/alt/ippan_sakuhin/td/", f"{task}.sql")
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)

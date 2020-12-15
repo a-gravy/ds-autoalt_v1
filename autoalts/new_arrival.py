@@ -33,7 +33,7 @@ class NewArrival(AutoAltMaker):
 
     def make_alt(self, input_path=None, bpr_model_path=None):
         logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
-        if self.alt_info['domain'].values[0] == "ippan_video":
+        if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.new_ep_recommender(bpr_model_path)
         elif self.alt_info['domain'].values[0] == "semiadult":
             self.semi_adult(input_path)

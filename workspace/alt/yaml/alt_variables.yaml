@@ -9,7 +9,7 @@ s3_semiadult_dir: "s3://unext-datascience-prod/jobs/semiadult/"
 s3:
   root: "s3://unext-datascience/alts/"
   yaml: "s3://unext-datascience/alts/yaml/"
-  ippan_video: "s3://unext-datascience/alts/ippan_video/"
+  ippan_sakuhin: "s3://unext-datascience/alts/ippan_sakuhin/"
   semiadult: "s3://unext-datascience/alts/semiadult/"
 
 aws_image:

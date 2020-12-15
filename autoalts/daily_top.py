@@ -10,7 +10,7 @@ class DailyTop(AutoAltMaker):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
 
     def make_alt(self, input_path):
-        if self.alt_info['domain'].values[0] == "ippan_video":
+        if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             if "SFET" in self.alt_info['feature_public_code'].values[0]:  # TODO: tmp place for coldstart
                 self.video_domain(input_path)
             else:

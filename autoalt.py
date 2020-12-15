@@ -2,7 +2,7 @@
 
 Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py byw <feature_public_code>  [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py byw <feature_public_code> --sid_name=PATH [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
@@ -27,6 +27,7 @@ Options:
     --target_users PATH   active users
     --target_items PATH   target items to recommend
     --series PATH         path of SID-series_id file
+    --sid_name PATH       path of SID-name file
 
 
 """
@@ -90,7 +91,7 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
         elif 'toppick' in file:
             def toppick_format(line):
                 arr = line.rstrip().split(',')
-                return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},new あなたへのおすすめ,ippan_video,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
+                return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = toppick_format
 
         elif 'coldstart' in file:
@@ -99,7 +100,7 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                 if "semiadult" in file:
                     return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
                 elif "ippan" in file:
-                    return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,ippan_video,0,{arr[-3]},{arr[-2]}\n'
+                    return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
 
             output_func = coldstart_format
         else:  # choutatsu
@@ -115,8 +116,8 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                 # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
                 if "semiadult" in file:
                     return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
-                elif "ippan" in file:  # TODO, current ippan is ippan_video
-                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,ippan_video,{arr[7]},{arr[5]},{arr[6]}\n"
+                elif "ippan" in file:  # TODO, current ippan is ippan_sakuhin
+                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,ippan_sakuhin,{arr[7]},{arr[5]},{arr[6]}\n"
 
             output_func = choutatsu_format
 
@@ -210,7 +211,7 @@ def main():
         elif arguments["byw"]:
             # python autoalt.py  byw JFET000002 --blacklist data/filter_out_sakuhin_implicit.csv  --watched_list data/watched_list_ippan.csv --series data/sid_series.csv
             alt = BecauseYouWatched(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                                    series_path=arguments["--series"],
+                                    series_path=arguments["--series"], sid_name_path=arguments["--sid_name"],
                                     max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(arguments["--watched_list"])
         elif arguments['coldstart']:

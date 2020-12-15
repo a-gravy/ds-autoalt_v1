@@ -38,7 +38,7 @@ allocates files to autoalt_${ippan, semiadult, adult}_features
 for ippan_video: it allocates all ippan_video autoalts and feature table from 調達部:
 s3://unext-datascience/starfish/keep/cassandra/unext/ippan/alt_features_implicit.csv  
 -> as one file called autoalt_ippan_video_features  
--> upload to autoalt_ippan_features by workspace/alt/ippan_video/yaml/autoalt_ippan_video_features.yaml
+-> upload to autoalt_ippan_features by workspace/alt/ippan_sakuhin/yaml/autoalt_ippan_sakuhin_features.yaml
 
 
 
