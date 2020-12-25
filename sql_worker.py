@@ -230,6 +230,10 @@ def push_2_dw():
     query.upload_from_gzipped_csv("alt.dim_alt_n", "data/dim_alt_n.csv.gz", delete_source_file=True)
 
 
+
+def get_sth_presto():
+    pass
+
 def main():
     # get_expire_soon()
     get_sth_cmsdb('台湾')

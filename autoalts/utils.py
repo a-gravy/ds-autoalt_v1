@@ -21,6 +21,20 @@ from docopt import docopt
 
 logging.basicConfig(level=logging.INFO)
 
+
+def file_to_list(filepath, ignore_header=False):
+    lst = []
+    ctr = 0
+    with open(filepath, 'r') as f:
+        for line in f:
+            ctr += 1
+            if ctr == 1 and ignore_header: continue
+            item = line[:-1].strip()
+            if item != "":
+                lst.append(item)
+    return lst
+
+
 def unzip_files_in_dir(dir_path):
     """
     unzip all file and save them in the same diretory

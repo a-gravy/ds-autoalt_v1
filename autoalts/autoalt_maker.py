@@ -45,7 +45,7 @@ class AutoAltMaker(object):
         """
         filtered_SIDs = [SID for SID in SIDs if SID not in self.blacklist]
         if len(SIDs) - len(filtered_SIDs) != 0:
-            logging.info(f"[black_list_filtering]: from {len(SIDs)} to {len(filtered_SIDs)}")
+            logging.debug(f"[black_list_filtering]: from {len(SIDs)} to {len(filtered_SIDs)}")
         return filtered_SIDs
 
     def rm_duplicates(self, SIDs):

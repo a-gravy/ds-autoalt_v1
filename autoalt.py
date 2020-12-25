@@ -4,6 +4,7 @@ Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py byw <feature_public_code> --sid_name=PATH [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
     autoalt.py demo_candidates --input=PATH --output=PATH
@@ -39,6 +40,7 @@ import pandas as pd
 from docopt import docopt
 import yaml
 from autoalts.daily_top import DailyTop
+from autoalts.toppick import TopPick
 from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
 from autoalts.coldstart import ColdStartExclusive
@@ -189,7 +191,7 @@ def main():
     today = date.today().strftime("%Y%m%d")  # e.g. 20200915
 
     # read dim_autoalt.csv
-    if any([arguments['top'], arguments['new_arrival'], arguments['byw'], arguments['coldstart']]):
+    if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments['coldstart']]):
         df = pd.read_csv("data/dim_autoalt.csv")
         alt_info = df[df['feature_public_code'] == arguments["<feature_public_code>"]]
 
@@ -202,6 +204,12 @@ def main():
                            series_path=arguments["--series"],
                            max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(input_path=arguments["--input"])
+        elif arguments['toppick']:
+            alt = TopPick(alt_info, create_date=today, blacklist_path=arguments.get("--blacklist", None),
+                           series_path=arguments["--series"],
+                           max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
+            alt.make_alt(bpr_model_path=arguments["--model"], target_users_path=arguments['--target_users'],
+                         target_items_path=arguments['--target_items'])
         elif arguments["new_arrival"]:
             # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/filter_out_sakuhin_implicit.csv --series data/sid_series.csv
             alt = NewArrival(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
