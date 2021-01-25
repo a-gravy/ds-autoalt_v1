@@ -6,6 +6,7 @@ Usage:
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH
+    autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
     autoalt.py demo_candidates --input=PATH --output=PATH
     autoalt.py rm_series --input=PATH --output=PATH --series=PATH --target_users=PATH
@@ -45,11 +46,49 @@ from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
 from autoalts.coldstart import ColdStartExclusive
 from autoalts.utils import make_demo_candidates, toppick_rm_series
+from utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
 
 with open("config.yaml") as f:
     config = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+
+
+
+def allocate_fets_to_page_generation(feature_table_path, page_public_code):
+    """
+
+    :param feature_table_path: file made by allocate_fets_to_alt_page
+    :param page_public_code: e.g. MAINPAGE
+    :return:
+    """
+    fet_score_dict = {}
+    CFETs = []
+    for line in efficient_reading("data/dim_autoalt.csv"):
+        arr = line.split(",")
+        if arr[2] == page_public_code:
+            fet_score_dict[arr[0]] = float(arr[3])
+            if 'CFET' in arr[0]:
+                CFETs.append(arr[0])
+
+    logging.info(f"for PAGE:{page_public_code}, there are common FET:{CFETs} and \n {fet_score_dict}")
+
+    user_fets_dict = {}
+    for line in efficient_reading(feature_table_path):
+        arr = line.split(",")
+        if 'JFET' in arr[1] or 'SFET' in arr[1]:  # TODO:
+            user_fets_dict[arr[0]] = user_fets_dict.setdefault(arr[0], []) + [arr[1]]
+    logging.info(f"read {feature_table_path} done")
+
+    def fet_ranking(fet):
+        return fet_score_dict[fet]
+
+    with open(f"reco_{page_public_code}_autoalts_page.csv", "w") as w:
+        for user_id, fets in user_fets_dict.items():
+            unsorted_fets = user_fets_dict[user_id] + CFETs
+            #sorted(unsorted_fets, key=fet_ranking, reverse=True)
+            w.write(f"{user_id},{'|'.join(sorted(unsorted_fets, key=fet_ranking, reverse=True))}\n")
 
 
 def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
@@ -232,6 +271,9 @@ def main():
 
     elif arguments['allocate_FETs']:
         allocate_fets_to_alt_page(arguments['--input'], arguments['--output'])
+    elif arguments['allocate_FETs_page']:
+        # python autoalt.py allocate_FETs_page MAINPAGE --input data/autoalt_ippan_sakuhin_features.csv
+        allocate_fets_to_page_generation(arguments['--input'], arguments["<feature_public_code>"])
     elif arguments['check_reco']:
         check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
     elif arguments['demo_candidates']:
