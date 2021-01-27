@@ -119,8 +119,10 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
     feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
 
-    for file in os.listdir(dir_path):
+    existing_user_fets = {}  # user_multi_account_id:feature_public_code
 
+    for file in os.listdir(dir_path):
+        logging.info(f"processing {file}")
         # define output convertion function based on input file format
         if file == 'dim_autoalt.csv':
             logging.info(f'skip {file}')
@@ -129,21 +131,34 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
             def autoalt_format(line):
                 return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = autoalt_format
+        elif 'coldstart' in file:
+            # choutatsu FETs from reco_ippan_choutatsu_coldstart_features.csv
+            # format: user_multi_account_id,feature_public_code,sakuhin_codes,feature_score,feature_ranking,genre_tag_code,
+            # platform,film_rating_order,feature_public_flg,feature_display_flg,feature_home_display_flg,
+            # feature_public_start_datetime,feature_public_end_datetime,create_date
+            if "choutatsu" in file:
+                def coldstart_format(line):
+                    arr = line.rstrip().split(",")
+                    if "semiadult" in file:
+                        return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
+                    elif "ippan" in file:
+                        return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
+            # toppick FETs from autoalt_toppick_osusume_only -> autoalt_coldstart_toppick_osusume_only.csv
+            # format: user_multi_account_id,block,create_date,feature_name,sakuhin_codes,sub_text,score
+            elif "toppick" in file:
+                logging.info("coldstart & toppick")
+                def coldstart_format(line):
+                    arr = line.rstrip().split(",")
+                    return f"{arr[0]},JFET000001,{arr[2]},{arr[4]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n"
+            else:
+                assert "COLDSTART FILE ERROR"
+
+            output_func = coldstart_format
         elif 'toppick' in file:
             def toppick_format(line):
                 arr = line.rstrip().split(',')
                 return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = toppick_format
-
-        elif 'coldstart' in file:
-            def coldstart_format(line):
-                arr = line.rstrip().split(",")
-                if "semiadult" in file:
-                    return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
-                elif "ippan" in file:
-                    return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
-
-            output_func = coldstart_format
         else:  # choutatsu
             def choutatsu_format(line):
                 arr = line.rstrip().split(',')
@@ -162,16 +177,19 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
 
             output_func = choutatsu_format
 
-        with open(os.path.join(dir_path, file), "r") as r:
-            r.readline()
-            while True:
-                line = r.readline()
-                if line:
-                    output_str = output_func(line)
-                    if output_str:
-                        feature_table_writer.write(output_str)
+        for line in efficient_reading(os.path.join(dir_path, file)):
+            output_str = output_func(line)
+            if output_str:
+                feature_table_writer.write(output_str)
+
+                # check function
+                arr = output_str.split(",")
+                user_sids = existing_user_fets.get(arr[0],[])
+                if arr[1] in user_sids:
+                    logging.info(f"ERROR, {arr[0]} got two same FETs:{arr[1]}, current processing:{file}")
+                    raise Exception("ERROR FOUND")
                 else:
-                    break
+                    existing_user_fets[arr[0]] = user_sids + [arr[1]]
 
     feature_table_writer.close()
 
