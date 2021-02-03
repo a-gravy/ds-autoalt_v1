@@ -10,6 +10,9 @@ COPY requirements.txt /app
 
 RUN pip install --no-cache-dir -r requirements.txt
 
+# TODO Increment the number to force-refresh the lower layers.
+RUN echo '1'
+
 COPY *.py /app/
 COPY autoalts /app/autoalts
 COPY config.yaml /app/

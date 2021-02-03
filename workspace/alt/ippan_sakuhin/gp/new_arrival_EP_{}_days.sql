@@ -10,4 +10,11 @@ from public.dim_product
 where sale_start_datetime > now() - INTERVAL '{} day'
 and sale_start_datetime <= now()
 and sakuhin_public_code like 'SID%'
+and main_genre_code != 'SEMIADULT'
+and main_genre_code != 'MUSIC_IDOL'
+and main_genre_code != 'SPORT'
+and main_genre_code != 'YOUGA'
+and main_genre_code != 'HOUGA'
+and main_genre_code != 'NEWS'
+and main_genre_code != 'DOCUMENT'
 order by episode_no

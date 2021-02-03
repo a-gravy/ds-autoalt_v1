@@ -178,9 +178,9 @@ def demo_get_dim_table():
 
 def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
-    task = "daily_top"  # "unext_sakuhin_meta" "sid_name_dict"
+    task = "new_arrival_EP_7_days"  # "unext_sakuhin_meta" "sid_name_dict"
 
-    in_path = os.path.join("workspace/alt/ippan_sakuhin/td/", f"{task}.sql")
+    in_path = os.path.join("workspace/alt/ippan_sakuhin/gp/new_arrival_EP_{}_days.sql")
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)
@@ -236,7 +236,7 @@ def get_sth_presto():
 
 def main():
     # get_expire_soon()
-    get_sth_cmsdb('台湾')
+    get_sth_postegres()
     # get_sth_postegres()
 
 

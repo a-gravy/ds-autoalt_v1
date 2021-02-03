@@ -5,7 +5,7 @@ Usage:
     autoalt.py byw <feature_public_code> --sid_name=PATH [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
-    autoalt.py allocate_FETs --input=PATH --output=PATH
+    autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
     autoalt.py demo_candidates --input=PATH --output=PATH
@@ -54,10 +54,17 @@ with open("config.yaml") as f:
     config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 
-
-
 def allocate_fets_to_page_generation(feature_table_path, page_public_code):
     """
+    allocate autoalts & add Common ALTs for Page Generation
+    e.g.
+    userA,FET0012
+    userA,FET0005
+    userA,JFET0002
+    userA,JFET0001
+
+    ->userA,CFET0001|JFET0001|JFET0002
+
 
     :param feature_table_path: file made by allocate_fets_to_alt_page
     :param page_public_code: e.g. MAINPAGE
@@ -72,12 +79,15 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
             if 'CFET' in arr[0]:
                 CFETs.append(arr[0])
 
-    logging.info(f"for PAGE:{page_public_code}, there are common FET:{CFETs} and \n {fet_score_dict}")
+    if CFETs:
+        logging.info(f"for PAGE:{page_public_code}, there are common FET:{CFETs} and \n {fet_score_dict}")
 
-    user_fets_dict = {}
+    user_fets_dict = {}  # {userid: [FET]}
     for line in efficient_reading(feature_table_path):
         arr = line.split(",")
-        if 'JFET' in arr[1] or 'SFET' in arr[1]:  # TODO:
+        if len(arr) < 2:
+            logging.info(f"WRONG : {line}")
+        if 'JFET' in arr[1]:  # TODO: SFET
             user_fets_dict[arr[0]] = user_fets_dict.setdefault(arr[0], []) + [arr[1]]
     logging.info(f"read {feature_table_path} done")
 
@@ -87,11 +97,10 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
     with open(f"reco_{page_public_code}_autoalts_page.csv", "w") as w:
         for user_id, fets in user_fets_dict.items():
             unsorted_fets = user_fets_dict[user_id] + CFETs
-            #sorted(unsorted_fets, key=fet_ranking, reverse=True)
             w.write(f"{user_id},{'|'.join(sorted(unsorted_fets, key=fet_ranking, reverse=True))}\n")
 
 
-def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
+def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target_users_path=None):
     """
     allocate all feature files under dir_path
 
@@ -116,6 +125,12 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
     :param output_path:
     :return:
     """
+    target_users = []
+    if target_users_path:
+        for line in efficient_reading(target_users_path):
+            target_users.append(line.rstrip())
+        logging.info(f"AutoALTs are for {len(target_users)} target users, chotatatus ALTs are still for all users")
+
     feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
 
@@ -124,12 +139,17 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
     for file in os.listdir(dir_path):
         logging.info(f"processing {file}")
         # define output convertion function based on input file format
-        if file == 'dim_autoalt.csv':
-            logging.info(f'skip {file}')
-            continue
-        elif 'JFET' in file or 'CFET' in file:  # 自動生成ALTs
+
+        if 'CFET' in file:  # 自動生成ALTs
             def autoalt_format(line):
                 return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
+            output_func = autoalt_format
+        elif 'JFET' in file:  # 自動生成ALTs & for target users only
+            def autoalt_format(line):
+                if target_users and line.split(",")[0] not in target_users:
+                    return "not target user"
+                else:
+                    return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = autoalt_format
         elif 'coldstart' in file:
             # choutatsu FETs from reco_ippan_choutatsu_coldstart_features.csv
@@ -145,27 +165,27 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                         return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
             # toppick FETs from autoalt_toppick_osusume_only -> autoalt_coldstart_toppick_osusume_only.csv
             # format: user_multi_account_id,block,create_date,feature_name,sakuhin_codes,sub_text,score
-            elif "toppick" in file:
-                logging.info("coldstart & toppick")
-                def coldstart_format(line):
-                    arr = line.rstrip().split(",")
-                    return f"{arr[0]},JFET000001,{arr[2]},{arr[4]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n"
+            #elif "toppick" in file:  TODO
+            #    logging.info("coldstart & toppick")
+            #    def coldstart_format(line):
+            #        arr = line.rstrip().split(",")
+            #        return f"{arr[0]},JFET000001,{arr[2]},{arr[4]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n"
             else:
-                assert "COLDSTART FILE ERROR"
+                raise Exception("COLDSTART FILE ERROR")
 
             output_func = coldstart_format
-        elif 'toppick' in file:
-            def toppick_format(line):
-                arr = line.rstrip().split(',')
-                return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
-            output_func = toppick_format
-        else:  # choutatsu
+        #elif 'toppick' in file:  TODO
+        #    def toppick_format(line):
+        #        arr = line.rstrip().split(',')
+        #        return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
+        #    output_func = toppick_format
+        elif "choutatsu" in file:  # choutatsu
             def choutatsu_format(line):
                 arr = line.rstrip().split(',')
-                if len(arr) < 11:  # somehow some lines are empty
-                    return None
-                elif len(arr) > 11:
-                    arr[10] = ' '.join(arr[10:])  # for those lines w/ too more "," ->  join them
+                if len(arr) < 9:  # somehow some lines are empty
+                    return "WRONG FORMAT"
+                elif len(arr) > 9:
+                    arr[8] = ' '.join(arr[8:])  # for those lines w/ too more "," ->  join them
 
                 # don't save title info
                 # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
@@ -173,16 +193,26 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                 if "semiadult" in file:
                     return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
                 elif "ippan" in file:  # TODO, current ippan is ippan_sakuhin
-                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,ippan_sakuhin,{arr[7]},{arr[5]},{arr[6]}\n"
+                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[3]},,ippan_sakuhin,{arr[6]},{arr[4]},{arr[5]}\n"
 
             output_func = choutatsu_format
+        else:  #if file == 'dim_autoalt.csv' or file == "target_users.csv":
+            logging.info(f'skip {file}')
+            continue
 
+        linecnt = 0
         for line in efficient_reading(os.path.join(dir_path, file)):
             output_str = output_func(line)
-            if output_str:
+            if output_str == "WRONG FORMAT":
+                logging.info(f"{file}:{line} WRONG FORMAT")
+            elif output_str == "not target user":
+                pass
+            elif output_str:
                 feature_table_writer.write(output_str)
+                linecnt += 1
 
                 # check function
+                """
                 arr = output_str.split(",")
                 user_sids = existing_user_fets.get(arr[0],[])
                 if arr[1] in user_sids:
@@ -190,6 +220,12 @@ def allocate_fets_to_alt_page(dir_path, output_path="feature_table.csv"):
                     raise Exception("ERROR FOUND")
                 else:
                     existing_user_fets[arr[0]] = user_sids + [arr[1]]
+                """
+            else:
+                logging.info(f"{file}:{line} WRONG FORMAT")
+
+        feature_table_writer.flush()
+        logging.info(f"{file} for {linecnt} lines processed")
 
     feature_table_writer.close()
 
@@ -288,7 +324,7 @@ def main():
             raise Exception("Unimplemented ALT")
 
     elif arguments['allocate_FETs']:
-        allocate_fets_to_alt_page(arguments['--input'], arguments['--output'])
+        allocate_fets_to_fet_table(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))
     elif arguments['allocate_FETs_page']:
         # python autoalt.py allocate_FETs_page MAINPAGE --input data/autoalt_ippan_sakuhin_features.csv
         allocate_fets_to_page_generation(arguments['--input'], arguments["<feature_public_code>"])
