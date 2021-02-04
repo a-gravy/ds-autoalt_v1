@@ -56,7 +56,8 @@ with open("config.yaml") as f:
 
 def allocate_fets_to_page_generation(feature_table_path, page_public_code):
     """
-    allocate autoalts & add Common ALTs for Page Generation
+    for users which have AutoALTs Reco, allocate & rank their autoalts, for Page Generation
+
     e.g.
     userA,FET0012
     userA,FET0005
@@ -134,7 +135,7 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
     feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
 
-    existing_user_fets = {}  # user_multi_account_id:feature_public_code
+    existing_user_fets = {}  # {user_multi_account_id:feature_public_code}
 
     for file in os.listdir(dir_path):
         logging.info(f"processing {file}")
@@ -151,6 +152,27 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 else:
                     return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = autoalt_format
+        elif "choutatsu" in file and 'coldstart' not in file:  # choutatsu
+            def choutatsu_format(line):
+                arr = line.rstrip().split(',')
+                if len(arr) < 9:  # somehow some lines are empty
+                    return "WRONG FORMAT"
+                elif len(arr) > 9:
+                    arr[8] = ' '.join(arr[8:])  # for those lines w/ too more "," ->  join them
+
+                # don't save title info
+                # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
+                # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
+                if "semiadult" in file:
+                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
+                elif "ippan" in file:  # TODO, current ippan is ippan_sakuhin
+                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[3]},,ippan_sakuhin,{arr[6]},{arr[4]},{arr[5]}\n"
+
+            output_func = choutatsu_format
+        else:  #if file == 'dim_autoalt.csv' or file == "target_users.csv":
+            logging.info(f'skip {file}')
+            continue
+        '''
         elif 'coldstart' in file:
             # choutatsu FETs from reco_ippan_choutatsu_coldstart_features.csv
             # format: user_multi_account_id,feature_public_code,sakuhin_codes,feature_score,feature_ranking,genre_tag_code,
@@ -172,33 +194,13 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
             #        return f"{arr[0]},JFET000001,{arr[2]},{arr[4]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n"
             else:
                 raise Exception("COLDSTART FILE ERROR")
-
             output_func = coldstart_format
-        #elif 'toppick' in file:  TODO
-        #    def toppick_format(line):
-        #        arr = line.rstrip().split(',')
-        #        return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
-        #    output_func = toppick_format
-        elif "choutatsu" in file:  # choutatsu
-            def choutatsu_format(line):
+        elif 'toppick' in file:
+            def toppick_format(line):
                 arr = line.rstrip().split(',')
-                if len(arr) < 9:  # somehow some lines are empty
-                    return "WRONG FORMAT"
-                elif len(arr) > 9:
-                    arr[8] = ' '.join(arr[8:])  # for those lines w/ too more "," ->  join them
-
-                # don't save title info
-                # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
-                if "semiadult" in file:
-                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
-                elif "ippan" in file:  # TODO, current ippan is ippan_sakuhin
-                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[3]},,ippan_sakuhin,{arr[6]},{arr[4]},{arr[5]}\n"
-
-            output_func = choutatsu_format
-        else:  #if file == 'dim_autoalt.csv' or file == "target_users.csv":
-            logging.info(f'skip {file}')
-            continue
+                return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
+            output_func = toppick_format
+        '''
 
         linecnt = 0
         for line in efficient_reading(os.path.join(dir_path, file)):
@@ -212,7 +214,6 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 linecnt += 1
 
                 # check function
-                """
                 arr = output_str.split(",")
                 user_sids = existing_user_fets.get(arr[0],[])
                 if arr[1] in user_sids:
@@ -220,7 +221,6 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                     raise Exception("ERROR FOUND")
                 else:
                     existing_user_fets[arr[0]] = user_sids + [arr[1]]
-                """
             else:
                 logging.info(f"{file}:{line} WRONG FORMAT")
 

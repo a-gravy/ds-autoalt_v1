@@ -189,7 +189,7 @@ class BecauseYouWatched(AutoAltMaker):
 
         logging.info("loading watched_list_ippan as user seen items")
         # TODO maintain a seen list for speed up
-        dict_watched_sakuhin = {}
+        dict_watched_sakuhin = {}  # {userid: [watched SIDs]}
         with open(watched_list_ippan, "r") as r:  # userid,item,rating ; rating != 1 -> bookmark
             while True:
                 line = r.readline()
