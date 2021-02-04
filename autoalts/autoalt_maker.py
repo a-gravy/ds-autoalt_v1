@@ -1,6 +1,7 @@
 import os, logging
 import yaml
 import pickle
+from utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,6 +48,15 @@ class AutoAltMaker(object):
         if len(SIDs) - len(filtered_SIDs) != 0:
             logging.debug(f"[black_list_filtering]: from {len(SIDs)} to {len(filtered_SIDs)}")
         return filtered_SIDs
+
+    def read_target_users(self, target_users_path):
+        target_users = []
+        if target_users_path:
+            for line in efficient_reading(target_users_path):
+                target_users.append(line.rstrip())
+            logging.info(f"read {len(target_users)} target users. ({target_users[:3]})")
+        return target_users
+
 
     def rm_duplicates(self, SIDs):
         unqiues = []

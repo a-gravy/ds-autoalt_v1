@@ -2,8 +2,8 @@
 
 Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py byw <feature_public_code> --sid_name=PATH [--blacklist=PATH  --watched_list=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
@@ -96,6 +96,7 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
         return fet_score_dict[fet]
 
     with open(f"reco_{page_public_code}_autoalts_page.csv", "w") as w:
+        w.write("user_multi_account_id,autoalts\n")
         for user_id, fets in user_fets_dict.items():
             unsorted_fets = user_fets_dict[user_id] + CFETs
             w.write(f"{user_id},{'|'.join(sorted(unsorted_fets, key=fet_ranking, reverse=True))}\n")
@@ -135,8 +136,6 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
     feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
 
-    existing_user_fets = {}  # {user_multi_account_id:feature_public_code}
-
     for file in os.listdir(dir_path):
         logging.info(f"processing {file}")
         # define output convertion function based on input file format
@@ -164,7 +163,7 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 # title = arr[9].rstrip().replace('"', '').replace("'", "").replace(',', '')
                 # description = arr[10].rstrip().replace('"', '').replace("'", "").replace(',', '')
                 if "semiadult" in file:
-                    return f"{arr[0]},{arr[1]},{arr[2]},{arr[4]},,semiadult,{arr[7]},{arr[5]},{arr[6]}\n"
+                    return f"{arr[0]},{arr[1]},{arr[3]},{arr[2]},,semiadult,{arr[4]},{arr[6]},{arr[7]}\n"
                 elif "ippan" in file:  # TODO, current ippan is ippan_sakuhin
                     return f"{arr[0]},{arr[1]},{arr[2]},{arr[3]},,ippan_sakuhin,{arr[6]},{arr[4]},{arr[5]}\n"
 
@@ -201,6 +200,7 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = toppick_format
         '''
+        existing_user_fets = {}  # {user_multi_account_id:feature_public_code}
 
         linecnt = 0
         for line in efficient_reading(os.path.join(dir_path, file)):
@@ -214,6 +214,7 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 linecnt += 1
 
                 # check function
+                '''
                 arr = output_str.split(",")
                 user_sids = existing_user_fets.get(arr[0],[])
                 if arr[1] in user_sids:
@@ -221,11 +222,12 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                     raise Exception("ERROR FOUND")
                 else:
                     existing_user_fets[arr[0]] = user_sids + [arr[1]]
+                '''
             else:
                 logging.info(f"{file}:{line} WRONG FORMAT")
 
         feature_table_writer.flush()
-        logging.info(f"{file} for {linecnt} lines processed")
+        logging.info(f"{file} : {linecnt} lines processed")
 
     feature_table_writer.close()
 
@@ -306,13 +308,14 @@ def main():
         elif arguments["new_arrival"]:
             # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/filter_out_sakuhin_implicit.csv --series data/sid_series.csv
             alt = NewArrival(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                             series_path=arguments["--series"],
+                             series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(input_path=arguments['--input'], bpr_model_path=arguments["--model"])
         elif arguments["byw"]:
             # python autoalt.py  byw JFET000002 --blacklist data/filter_out_sakuhin_implicit.csv  --watched_list data/watched_list_ippan.csv --series data/sid_series.csv
             alt = BecauseYouWatched(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
                                     series_path=arguments["--series"], sid_name_path=arguments["--sid_name"],
+                                    target_users_path=arguments.get("--target_users", None),
                                     max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(arguments["--watched_list"])
         elif arguments['coldstart']:

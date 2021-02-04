@@ -23,13 +23,17 @@ import logging
 import time
 import operator
 from autoalts.autoalt_maker import AutoAltMaker
+from utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
 
 
 class NewArrival(AutoAltMaker):
-    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=30, min_nb_reco=3):
+    def __init__(self, alt_info, create_date, blacklist_path, target_users_path=None, series_path=None, max_nb_reco=30, min_nb_reco=1):
         super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
+        self.target_users = None
+        if target_users_path:
+            self.target_users = self.read_target_users(target_users_path)
 
     def make_alt(self, input_path=None, bpr_model_path=None):
         logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
@@ -66,7 +70,7 @@ class NewArrival(AutoAltMaker):
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
                     f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
 
-    def new_ep_recommender(self, bpr_model_path):
+    def new_ep_recommender_v1(self, bpr_model_path):
         """
         669933 users are binge-watching sth,
         took 494s
@@ -74,7 +78,7 @@ class NewArrival(AutoAltMaker):
         :return: a dict {user_id:{SIDA:scoreA, SIDB:scoreB, ...}
         """
         model = self.load_model(bpr_model_path)
-        new_arrival_sid_epc = self.new_arrival_ep_loader()
+        new_arrival_sid_epc = self.new_arrival_ep_loader()  # {sakuhin_public_code:episode_public_code}
         user_session = self.user_session_reader()
 
         logging.info(f"{len(new_arrival_sid_epc)} SIDs w/ new arrival EP")
@@ -86,10 +90,10 @@ class NewArrival(AutoAltMaker):
                                                                                new_arrival_sid_epc.keys()),
                                                                            batch_size=10000)):
                 if i % 10000 == 0:
-                    logging.info('progress: {:.3f}'.format(float(i) / len(model.user_item_matrix.user2id) * 100))
+                    logging.info('progress: {:.3f}%'.format(float(i) / len(model.user_item_matrix.user2id) * 100))
 
                 # get new EPs of user binge-watching sakuhins
-                user_interesting_new_eps = [(sid, new_arrival_sid_epc.get(sid)) for sid in sid_list]
+                user_interesting_new_eps = [(sid, new_arrival_sid_epc.get(sid)) for sid in sid_list if new_arrival_sid_epc.get(sid, None)]
 
                 if len(user_interesting_new_eps) < self.min_nb_reco:
                     continue
@@ -101,19 +105,75 @@ class NewArrival(AutoAltMaker):
                         reco = [sid for (sid, ep) in user_interesting_new_eps if ep not in watched_eps]
                     else:
                         reco = [sid for (sid, ep) in user_interesting_new_eps]
-                    if len(reco) < self.min_nb_reco:
-                        continue
 
                     # reco = self.black_list_filtering(reco)  # unnecessary, since this SID is what user interested
-                    reco = self.rm_duplicates(reco)
                     if self.series_dict:
                         reco = self.rm_series(reco)
+
+                    if len(reco) < self.min_nb_reco:
+                        continue
 
                     w.write(
                         f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
                         f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
                         # new_ep_reco.setdefault(userid, {sid:score.item()+score_base for sid, score in zip(sid_list, score_list)})
         # TODO: update N past days daily or just one day daily?
+
+    def new_ep_recommender(self, bpr_model_path):
+        """
+        669933 users are binge-watching sth,
+        took 494s
+
+        :return: a dict {user_id:{SIDA:scoreA, SIDB:scoreB, ...}
+        """
+        model = self.load_model(bpr_model_path)
+        new_arrival_sid_epc = self.new_arrival_ep_loader()  # {sakuhin_public_code:episode_public_code}
+        # user_session = self.user_session_reader()
+        user_watched_EPs = self.user_ep_reader()  # { user_id: [watched EPs] }
+
+        logging.info(f"{len(new_arrival_sid_epc)} SIDs w/ new arrival EP")
+
+        nb_all_users = 0
+        nb_new_arrival_users = 0
+
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['autoalt'])
+            for userid, sid_list, score_list in self.rerank_seen(model, target_users=self.target_users,
+                                                                 target_items=list(new_arrival_sid_epc.keys()),
+                                                                 batch_size=10000):
+                nb_all_users += 1
+                if nb_all_users % 50000 == 0:
+                    logging.info('progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
+
+                # get new EPs of user binge-watching sakuhins
+                user_interesting_new_eps = [(sid, new_arrival_sid_epc.get(sid)) for sid in sid_list if new_arrival_sid_epc.get(sid, None)]
+
+                if len(user_interesting_new_eps) < self.min_nb_reco:
+                    continue
+
+                if user_interesting_new_eps:
+                    watched_eps = user_watched_EPs.get(userid, None)
+
+                    if watched_eps:  # remove already watched EP
+                        watched_eps = set(watched_eps)
+                        reco = [sid for (sid, ep) in user_interesting_new_eps if ep not in watched_eps]
+                    else:
+                        reco = [sid for (sid, ep) in user_interesting_new_eps]
+
+                    # reco = self.black_list_filtering(reco)  # unnecessary, since this SID is what user interested
+                    if self.series_dict:
+                        reco = self.rm_series(reco)
+
+                    if len(reco) < self.min_nb_reco:
+                        continue
+
+                    w.write(
+                        f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
+                        f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
+                    nb_new_arrival_users += 1
+
+        logging.info("{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_new_arrival_users, nb_all_users,
+                                                                                             nb_new_arrival_users / nb_all_users*100))
 
     def rerank_seen(self, model,
                     target_users=None,
@@ -129,16 +189,15 @@ class NewArrival(AutoAltMaker):
         :param batch_size:
         :yield: uid, sid list
         """
-
         # user id -> matrix index
-        if target_users is None:
-            target_users_index_list = list(model.user_item_matrix.user2id.values())  # TODO [:100] is for testing
+        if not target_users:
+            target_users_index_list = list(model.user_item_matrix.user2id.values())
         else:
             target_users_index_list = [model.user_item_matrix.user2id.get(user) for user in target_users if
-                                       model.user_item_matrix.user2id.get(user) is not None]
+                                       model.user_item_matrix.user2id.get(user, None)]
 
         # make target matrix, which contains target items only
-        if target_items is None:
+        if not target_items:
             # SID -> matrix index
             target_items2actualid = {i: i for i in range(model.user_item_matrix.matrix.shape[1])}
             target_matrix = model.user_item_matrix.matrix
@@ -151,6 +210,9 @@ class NewArrival(AutoAltMaker):
             # target_matrix[nb of user, nb of target items], contains target items only by target_matrix_index
             target_matrix = model.user_item_matrix.matrix[:, target_items_index_list]
             item_factors = model.item_factors[target_items_index_list, :]
+
+        logging.info(f"do seen SID ranking for {len(target_users_index_list)} target users")
+        logging.info(f"do seen SID ranking for {len(item_factors)} target items")
 
         # matrix operation on batch of user
         for uidxs in self.batch(target_users_index_list, batch_size):
@@ -180,6 +242,14 @@ class NewArrival(AutoAltMaker):
         # dataframe already ordered by episode_no -> keep the most front ep
         eps = eps[~ eps.duplicated(subset='sakuhin_public_code', keep='first')]
         return {sid: epc for sid, epc in zip(eps['sakuhin_public_code'], eps['episode_public_code'])}
+
+    def user_ep_reader(self, input="data/user_ep_history.csv"):
+        user_watched_EPs = {}  # { user_id: [EPs] }
+
+        for line in efficient_reading(input):
+            arr = line.rstrip().split(",")
+            user_watched_EPs[arr[0]] = arr[1].split("|")
+        return user_watched_EPs
 
     # past N days is corresponding to past N days of new_arrival_EP.csv
     def user_session_reader(self, input_path="data/new_user_sessions.csv"):

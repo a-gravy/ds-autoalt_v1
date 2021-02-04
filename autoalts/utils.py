@@ -43,11 +43,14 @@ def unzip_files_in_dir(dir_path):
     :return:
     """
     for file in os.listdir(dir_path):
-        logging.info(f"unzipping {file}")
-        with gzip.open(os.path.join(dir_path, file), 'rb') as f_in:
-            name_without_gz = os.path.splitext(file)[0]
-            with open(os.path.join(dir_path, name_without_gz), 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        if file.endswith(".gz"):
+            logging.info(f"unzipping {file}")
+            with gzip.open(os.path.join(dir_path, file), 'rb') as f_in:
+                name_without_gz = os.path.splitext(file)[0]
+                with open(os.path.join(dir_path, name_without_gz), 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        else:
+            logging.info(f"skip {file}")
 
 
 def make_demo_candidates(feature_table_path, output_path="demo_candidates.csv"):
