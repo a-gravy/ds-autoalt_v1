@@ -1,4 +1,4 @@
-makefileVERSION ?= 0.9.5
+VERSION ?= 0.9.6
 NAME ?= altmaker
 
 REPOSITORY ?= harbor.unext.jp/datascience-dev

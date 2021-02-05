@@ -54,17 +54,16 @@ def unzip_files_in_dir(dir_path):
 
 
 def make_demo_candidates(feature_table_path, output_path="demo_candidates.csv"):
-    set_dict = {"JFET000001": set(), "JFET000002": set(), "JFET000003": set()}
+    set_dict = {"JFET000002": set(), "JFET000003": set()}
 
     with open(feature_table_path, "r") as r:
         r.readline()
         while True:
             line = r.readline()
             if line:
-                arr = line.split(",")
+                arr = line.rstrip().split(",")
                 feature_public_code = arr[1]
-
-                if set_dict.get(feature_public_code, None) != None:
+                if set_dict.get(feature_public_code, "no found") != "no found":  # for set()
                     set_dict[feature_public_code].add(arr[0])
             else:
                 break
@@ -72,12 +71,23 @@ def make_demo_candidates(feature_table_path, output_path="demo_candidates.csv"):
     for k, v in set_dict.items():
         logging.info(f"{k} has {len(v)} users")
 
-    logging.info(f"JFET000001 & JFET000002 & JFET000003 = {len(set_dict['JFET000001'] & set_dict['JFET000002'] & set_dict['JFET000003'])}")
+    logging.info(f"JFET000002 & JFET000003 = {len(set_dict['JFET000002'] & set_dict['JFET000003'])}")
 
+    cnt = 0
     with open(output_path, "w") as w:
         w.write("user_multi_account_id\n")
-        for user_id in (set_dict['JFET000001'] & set_dict['JFET000002'] & set_dict['JFET000003']):
+        for user_id in (set_dict['JFET000002'] & set_dict['JFET000003']):
             w.write(f"{user_id}\n")
+            cnt += 1
+            if cnt > 100:
+                break
+
+        if cnt < 100:
+            for user_id in (set_dict['JFET000003'] - set_dict['JFET000002']):
+                w.write(f"{user_id}\n")
+                cnt += 1
+                if cnt > 100:
+                    break
 
 
 def toppick_rm_series(series_path, input, output, target_users_path):
