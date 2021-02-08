@@ -66,9 +66,10 @@ class NewArrival(AutoAltMaker):
         reco_str = '|'.join(new_SIDs[:self.max_nb_reco])
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
-                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
     def new_ep_recommender_v1(self, bpr_model_path):
         """
@@ -137,7 +138,7 @@ class NewArrival(AutoAltMaker):
         nb_new_arrival_users = 0
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
             for userid, sid_list, score_list in self.rerank_seen(model, target_users=self.target_users,
                                                                  target_items=list(new_arrival_sid_epc.keys()),
                                                                  batch_size=10000):
@@ -169,7 +170,8 @@ class NewArrival(AutoAltMaker):
 
                     w.write(
                         f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
-                        f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
+                        f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                        f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
                     nb_new_arrival_users += 1
 
         logging.info("{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_new_arrival_users, nb_all_users,

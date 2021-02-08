@@ -45,9 +45,10 @@ class DailyTop(AutoAltMaker):
 
         reco_str = '|'.join(SIDs[:self.max_nb_reco])
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
-                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
     def video_domain_genre(self, input_path):
         """
@@ -102,9 +103,10 @@ class DailyTop(AutoAltMaker):
 
         # just make one row for user "COMMON"
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
-                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
     def video_domain(self, input_path):
         """
@@ -131,7 +133,8 @@ class DailyTop(AutoAltMaker):
 
         reco_str = '|'.join(reco[:self.max_nb_reco])
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
             # TODO: user_multi_account_id
             w.write(f"exclusive,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
-                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1\n")
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")

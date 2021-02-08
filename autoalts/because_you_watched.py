@@ -77,7 +77,7 @@ class BecauseYouWatched(AutoAltMaker):
 
         logging.info("making because_you_watched rows for new session users")
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
 
             for line in efficient_reading(user_sid_history_path):
                 arr = line.rstrip().split(",")  # user_multi_account_id,sids
@@ -101,7 +101,8 @@ class BecauseYouWatched(AutoAltMaker):
                             title = title.rstrip().replace('"', '').replace("'", "")
                             title = self.alt_info['feature_title'].values[0].replace("○○", title)
                             w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(cbf_reco)},"
-                                    f"{title},{self.alt_info['domain'].values[0]},1\n")
+                                    f"{title},{self.alt_info['domain'].values[0]},1,"
+                                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
                             nb_byw_users += 1
                             # TODO: for MVP, we only make one BYW FET for one user
                             break
@@ -249,7 +250,7 @@ class BecauseYouWatched(AutoAltMaker):
 
         logging.info("making because_you_watched rows for new session users")
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['autoalt'])
+            w.write(self.config['header']['feature_table'])
 
             for line in efficient_reading(user_sid_history_path):
                 arr = line.rstrip().split(",")  # user_multi_account_id,sids
@@ -284,7 +285,8 @@ class BecauseYouWatched(AutoAltMaker):
                                 title = self.alt_info['feature_title'].values[0].replace("○○", title)
 
                                 w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(cbf_reco)},"
-                                        f"{title},{self.alt_info['domain'].values[0]},1\n")
+                                        f"{title},{self.alt_info['domain'].values[0]},1,"
+                                        f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
                                 nb_byw_users += 1
                                 # TODO: for MVP, we only make one BYW FET for one user
                                 break

@@ -142,14 +142,16 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
 
         if 'CFET' in file:  # 自動生成ALTs
             def autoalt_format(line):
-                return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
+                return line
+                # return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = autoalt_format
         elif 'JFET' in file:  # 自動生成ALTs & for target users only
             def autoalt_format(line):
                 if target_users and line.split(",")[0] not in target_users:
                     return "not target user"
                 else:
-                    return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
+                    return line
+                    # return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = autoalt_format
         elif "choutatsu" in file and 'coldstart' not in file:  # choutatsu
             def choutatsu_format(line):
