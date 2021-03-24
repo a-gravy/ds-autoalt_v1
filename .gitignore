@@ -6,12 +6,15 @@ __pycache__/
 *$py.class
 *.csv
 *.gz
+/data
+.idea/
 
 # C extensions
 *.so
 
 # Distribution / packaging
 .Python
+*.ipynb
 build/
 tmp/
 bpr/

@@ -4,6 +4,7 @@ Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py trending <feature_public_code> --model=PATH --raw_daily=PATH --daily=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
@@ -44,6 +45,7 @@ from autoalts.daily_top import DailyTop
 from autoalts.toppick import TopPick
 from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
+from autoalts.trending import Trending
 from autoalts.coldstart import ColdStartExclusive
 from autoalts.utils import make_demo_candidates, toppick_rm_series
 from utils import efficient_reading
@@ -288,7 +290,7 @@ def main():
     today = date.today().strftime("%Y%m%d")  # e.g. 20200915
 
     # read dim_autoalt.csv
-    if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments['coldstart']]):
+    if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments["trending"], arguments['coldstart']]):
         df = pd.read_csv("data/dim_autoalt.csv")
         alt_info = df[df['feature_public_code'] == arguments["<feature_public_code>"]]
 
@@ -320,6 +322,13 @@ def main():
                                     target_users_path=arguments.get("--target_users", None),
                                     max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(arguments["--watched_list"])
+        elif arguments["trending"]:
+            # python autoalt.py trending JFET000004 --model data/implicit_bpr.model.2021-03-21 --raw_daily data/daily_top.csv --daily data/CFET000001.csv --toppick data/toppick.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv
+            alt = Trending(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
+                             series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
+                             max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
+            alt.make_alt(raw_path_top=arguments['--raw_daily'], dailytop_path=arguments['--daily'],
+                         toppick_path=arguments['--toppick'], bpr_model_path=arguments["--model"])
         elif arguments['coldstart']:
             alt = ColdStartExclusive(alt_info, create_date=today)
             alt.make_alt(input=arguments["--input"])
