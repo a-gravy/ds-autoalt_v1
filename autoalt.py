@@ -323,7 +323,7 @@ def main():
                                     max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(arguments["--watched_list"])
         elif arguments["trending"]:
-            # python autoalt.py trending JFET000004 --model data/implicit_bpr.model.2021-03-21 --raw_daily data/daily_top.csv --daily data/CFET000001.csv --toppick data/toppick.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv
+            # python autoalt.py trending JFET000005 --model data/implicit_bpr.model.2021-03-21 --raw_daily data/daily_top.csv --daily data/CFET000001.csv --toppick data/toppick.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv
             alt = Trending(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
                              series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
