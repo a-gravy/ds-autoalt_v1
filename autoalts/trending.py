@@ -1,5 +1,4 @@
 import logging
-import operator
 from autoalts.autoalt_maker import AutoAltMaker
 from utils import efficient_reading
 from bpr.implicit_recommender import rerank
@@ -44,11 +43,17 @@ class Trending(AutoAltMaker):
 
         pool_SIDs = pool_SIDs - set(daily_top_SIDs)
         logging.info(f"nb of SID in pool after removal daily_top = {len(pool_SIDs)}")
+        pool_SIDs = self.rm_series(pool_SIDs)
+        logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
 
         model = self.load_model(bpr_model_path)
 
         nb_all_users = 0
         nb_output_users = 0
+
+        # for popular, record the
+        already_reco_output = open("already_reco_for_popular.csv", "w")
+        already_reco_output.write("userid,sid_list\n")
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
@@ -63,14 +68,18 @@ class Trending(AutoAltMaker):
 
                 toppick_sids = toppick_dict.get(userid, None)
                 if toppick_sids:
+                    already_reco_output.write(f"{userid},{'|'.join(sid_list + toppick_sids)}\n")
+
                     toppick_sids = set(toppick_sids)
                     sid_list = [sid for sid in sid_list if sid not in toppick_sids]
-
-                if len(sid_list) < self.min_nb_reco:
-                    continue
+                else:
+                    already_reco_output.write(f"{userid},{'|'.join(sid_list)}\n")
 
                 reco = self.black_list_filtering(sid_list)
                 reco = self.rm_duplicates(reco)
+
+                if len(reco) < self.min_nb_reco:
+                    continue
 
                 w.write(
                     f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
@@ -81,7 +90,7 @@ class Trending(AutoAltMaker):
         logging.info(
             "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
                                                                                      nb_output_users / nb_all_users * 100))
-
+        already_reco_output.close()
 
 
 
