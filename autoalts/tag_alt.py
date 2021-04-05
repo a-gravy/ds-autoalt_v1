@@ -1,134 +1,209 @@
 import logging
 import pandas as pd
 import numpy as np
-from sqlalchemy import create_engine
 import operator
-import pickle
-from mappings import types, tpye_mapping, genres_mapping, tags
+from collections import Counter
+import itertools
+from autoalts.autoalt_maker import AutoAltMaker
+import autoalts.mappings as mapping
+from bpr.implicit_recommender import rerank
+from utils import efficient_reading
 
 logger = logging.getLogger(__name__)
 
 
-#UNEXT_ANALYTICS_DW_PROD = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw"
-#engine = create_engine(UNEXT_ANALYTICS_DW_PROD)
+class TagAlt(AutoAltMaker):
+    def __init__(self, alt_info, create_date, target_users_path, blacklist_path, series_path=None, max_nb_reco=20,
+                 min_nb_reco=3):
+        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
+        self.target_users = None
+        if target_users_path:
+            self.target_users = self.read_target_users(target_users_path)
+
+        self.tag_index_dict = {}  # e.g. {'日本': 0}
+        self.sid_vector = {}  # {sid: [0, 1, 1, 0, ...]}
+        self.types = [s.lower() for s in mapping.types]
+        self.lookup = None
+
+    def make_alt(self, bpr_model_path, sakuhin_meta_path='data/sakuhin_meta.csv',
+                 lookup_table_path="data/sakuhin_lookup_table.csv",
+                 user_sid_history_path='data/user_sid_history.csv'):
+        if self.alt_info['domain'].values[0] == "ippan_sakuhin":
+            self.build_lookup(lookup_table_path)
+            self.ippan_sakuhin(bpr_model_path, sakuhin_meta_path, user_sid_history_path)
+        elif self.alt_info['domain'].values[0] == "semiadult":
+            raise Exception("Not implemented yet")
+        elif self.alt_info['domain'].values[0] == "adult":
+            raise Exception("Not implemented yet")
+        elif self.alt_info['domain'].values[0] == "book":
+            raise Exception("Not implemented yet")
+        else:
+            raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
+
+    def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
+        logging.info("Phase 1 - browse all tags to build a vector for all tags >= 100 counts")
+        tags_cnt = Counter()
+        # count all tags
+        for line in efficient_reading(sakuhin_meta_path, True):
+            for tag in self.tags_preprocessing(line):
+                tags_cnt[tag] = tags_cnt[tag] + 1
+
+        # build {tag:index} for vector
+        for index, (tag, cnt) in enumerate(tags_cnt.most_common()):
+            if cnt < 100:  # discard tags whose cnt < 100
+                break
+            self.tag_index_dict[tag] = index
+        tag_index_list = list(self.tag_index_dict.keys())
+        logging.info(f"got {len(self.tag_index_dict)} Tags")
+
+        logging.info("Phase 2 - build tag index vector for all SIDs")
+        # build sid_vector for all SIDs
+        for line in efficient_reading(sakuhin_meta_path, True):
+            v = np.zeros(len(self.tag_index_dict))
+            for tag in self.tags_preprocessing(line):
+                if tag in tag_index_list:
+                    v[self.tag_index_dict[tag]] = 1
+            self.sid_vector[line.split(",")[0]] = v
+
+        model = self.load_model(bpr_model_path)
+
+        logging.info("Phase 3 - making Tag ALTs")
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['feature_table'])
+            for line in efficient_reading(user_sid_history_path, True):
+                userid = line.split(",")[0]
+                user_profiling_vector = np.zeros(len(self.tag_index_dict))
+                # build user vector based on history (from old -> new)
+                for sid in line.rstrip().split(",")[1].split("|")[::-1]:
+                    user_profiling_vector = user_profiling_vector * 0.9 + self.sid_vector[sid]
+
+                # build Tag combo based on user profile
+                user_profiling_tags_dict = {}  # {'nation': ['日本'], 'type': ['anime', 'kids', 'drama'], ...
+                for index_tag in (np.argsort(-user_profiling_vector))[:20]:
+                    if user_profiling_vector[index_tag] < 0.01:
+                        break
+                    types = [s.lower() for s in mapping.types]
+                    if tag_index_list[index_tag].lower() in types:
+                        tag_type = 'type'
+                    elif tag_index_list[index_tag] in mapping.genres:
+                        tag_type = 'genre'
+                    elif tag_index_list[index_tag] in mapping.tags:
+                        tag_type = 'tags'
+                    else:
+                        tag_type = 'nation'
+                    user_profiling_tags_dict[tag_type] = user_profiling_tags_dict.setdefault(tag_type, []) + [
+                        tag_index_list[index_tag]]
+                    # print(f"{tag_type}-{tag_index_list[index_tag]} w/ {user_profiling_vector[index_tag]}")
+
+                # make ALT combo(e.g. genre:action-type:anime) based on user_profiling_tags_dict
+                alt_combos, nation_genre, genre_type, nation_type = [], [], [], []
+                nation_combo = []
+
+                if 'nation' in user_profiling_tags_dict and 'genre' in user_profiling_tags_dict:
+                    for nation in user_profiling_tags_dict['nation']:
+                        for combo in user_profiling_tags_dict['genre']:
+                            nation_combo.append(f'nation:{nation}-genre:{combo}')
+
+                if 'nation' in user_profiling_tags_dict and 'type' in user_profiling_tags_dict:
+                    for nation in user_profiling_tags_dict['nation']:
+                        for combo in user_profiling_tags_dict['type']:
+                            nation_combo.append(f'nation:{nation}-type:{combo}')
+
+                if 'genre' in user_profiling_tags_dict and 'type' in user_profiling_tags_dict:
+                    for genre in user_profiling_tags_dict['genre']:
+                        for combo in user_profiling_tags_dict['type']:
+                            genre_type.append(f'genre:{genre}-type:{combo}')
+
+                for combo_1, combo_2 in itertools.zip_longest(genre_type, nation_combo, fillvalue=None):
+                    if combo_1:
+                        alt_combos.append(combo_1)
+                    if combo_2:
+                        alt_combos.append(combo_2)
+
+                bpr_sid_list = None
+                for userid, sid_list, score_list in rerank(model, target_users=[userid],
+                                                           filter_already_liked_items=True, top_n=-1, batch_size=10000):
+                    bpr_sid_list = sid_list
+
+                if not bpr_sid_list:
+                    logging.info(f"user:{userid} has no data in model")
+                    continue
+                bpr_sid_set = set(bpr_sid_list)
+
+                already_reco_sids = set()
+
+                for combo in alt_combos[:3]:  # TODO 3 only
+                    part_1 = combo.split('-')[0].split(':')
+                    part_2 = combo.split('-')[1].split(':')
+                    condition = (self.lookup[part_1[0]] == part_1[1]) & (self.lookup[part_2[0]] == part_2[1])
+                    sids = self.do_query(condition)
+                    if not sids:
+                        combo = combo.split('-')[1]
+                        condition = self.lookup[part_2[0]] == part_2[1]
+                        sids = self.do_query(condition)
+                    alt_sids = [sids[index] for index in np.argsort(
+                        [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
+                    already_reco_sids.update(alt_sids[:10])
+
+                    # print(f'{combo}  {alt_sids}')
+                    w.write(
+                        f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(alt_sids[:self.max_nb_reco])},"
+                        f"{combo},{self.alt_info['domain'].values[0]},1,"
+                        f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+
+    def tags_preprocessing(self, line):
+        # sakuhin_public_code,display_name,main_genre_code,menu_names,parent_menu_names,nations
+        arr = line.rstrip().split(",")
+
+        # preprocess for main_genre_code
+        sid_type = mapping.tpye_mapping.get(arr[2], arr[2]).lower()
+
+        # preprocess for menu_names & parent_menu_names
+        sid_tags = set([sid_type])
+        for menu_name in arr[3].split("|") + arr[4].split("|"):
+            genre = mapping.genres_mapping.get(menu_name, None)
+            if genre:
+                sid_tags.add(genre)
+            elif menu_name in mapping.tags:
+                sid_tags.add(menu_name)
+
+        # preprocess for nations
+        if arr[5] != '':
+            for nation in arr[5].split("/"):
+                sid_tags.add(nation)
+
+        return sid_tags
+
+    def build_lookup(self, lookup_table_path):
+        self.lookup = pd.read_csv(lookup_table_path)
+
+        def type_mapping(typename):
+            return mapping.tpye_mapping.get(typename, typename)
+
+        def genre_mapping(menu_name):
+            genre = mapping.genres_mapping.get(menu_name, None)
+            if genre:
+                return genre
+            else:
+                return None
+
+        def tag_mapping(menu_name):
+            if menu_name in mapping.tags:
+                return menu_name
+            else:
+                return None
+
+        self.lookup['genre'] = list(map(genre_mapping, self.lookup['menu_name'].str.lower()))
+        self.lookup['tag'] = list(map(tag_mapping, self.lookup['menu_name'].str.lower()))
+        self.lookup['type'] = list(map(type_mapping, self.lookup['main_genre_code'].str.lower()))
+        logging.info("ALT lookup table built")
+
+    def do_query(self, condition):
+        x = list(self.lookup[condition]['sakuhin_public_code'].unique())
+        return x
 
 
-sql_metatable = """
-with main_code as (
-  select
-    distinct menu_public_code
-  from dim_sakuhin_menu
-  where parent_menu_public_code is null
-), tags as (
-  select
-    distinct
-    parent_menu_public_code,
-    parent_menu_name,
-    dsm.menu_public_code,
-    menu_name
-  from dim_sakuhin_menu dsm
-  inner join main_code mc
-  on dsm.parent_menu_public_code = mc.menu_public_code
-  where menu_name not like '%%ランキング%%'
-  and menu_name not like '%%作品%%'
-  and menu_name not like '%%歳%%'
-  and menu_name not like '%%行'
-  and parent_menu_public_code in (
-  'MNU0000001',
-  'MNU0000018',
-  'MNU0000035',
-  'MNU0000050',
-  'MNU0000063',
-  'MNU0000076',
-  'MNU0000090',
-  'MNU0000102',
-  'MNU0000117',
-  'MNU0000124'
-))
-select
-  dm.sakuhin_public_code,
-  dm.display_name,
-  dm.main_genre_code,
-  -- tags.menu_public_code,
-  array_to_string(array_agg(tags.menu_name),'|') as menu_names,
-  -- tags.parent_menu_public_code,
-  array_to_string(array_agg(tags.parent_menu_name), '|') as parent_menu_names,
-  current_sakuhin.display_production_country as nations
-from dim_sakuhin_menu
-inner join tags using(menu_public_code)
-right join (
-  select
-    distinct sakuhin_public_code,
-    display_production_country
-  from dim_product
---  where sale_end_datetime >= now()
---  and sale_start_datetime < now()
-  ) current_sakuhin using(sakuhin_public_code)
-inner join dim_sakuhin dm using(sakuhin_public_code)
-group by dm.sakuhin_public_code, dm.display_name, dm.main_genre_code, nations
---where sakuhin_public_code = 'SID0002167'
-order by sakuhin_public_code asc
-"""
 
-
-sql_lookuptable = """
-with main_code as (
-  select
-    distinct menu_public_code
-  from dim_sakuhin_menu
-  where parent_menu_public_code is null
-), tags as (
-  select
-    distinct
-    parent_menu_public_code,
-    parent_menu_name,
-    dsm.menu_public_code,
-    menu_name
-  from dim_sakuhin_menu dsm
-  inner join main_code mc
-  on dsm.parent_menu_public_code = mc.menu_public_code
-  where menu_name not like '%%ランキング%%'
-  and menu_name not like '%%作品%%'
-  and menu_name not like '%%歳%%'
-  and menu_name not like '%%行'
-  and parent_menu_public_code in (
-  'MNU0000001',
-  'MNU0000018',
-  'MNU0000035',
-  'MNU0000050',
-  'MNU0000063',
-  'MNU0000076',
-  'MNU0000090',
-  'MNU0000102',
-  'MNU0000117',
-  'MNU0000124'
-))
-select
-  dm.sakuhin_public_code,
-  dm.display_name,
-  dm.main_genre_code,
-  -- tags.menu_public_code,
-  tags.menu_name,
-  -- array_to_string(array_agg(tags.menu_name),'|') as menu_names,
-  -- tags.parent_menu_public_code,
-  tags.parent_menu_name,
-  -- array_to_string(array_agg(tags.parent_menu_name), '|') as parent_menu_names,
-  current_sakuhin.display_production_country as nations
-from dim_sakuhin_menu
-inner join tags using(menu_public_code)
-right join (
-  select
-    distinct sakuhin_public_code,
-    display_production_country
-  from dim_product
---  where sale_end_datetime >= now()
---  and sale_start_datetime < now()
-  ) current_sakuhin using(sakuhin_public_code)
-inner join dim_sakuhin dm using(sakuhin_public_code)
--- group by dm.sakuhin_public_code, dm.display_name, dm.main_genre_code, nations
---where sakuhin_public_code = 'SID0002167'
-order by sakuhin_public_code asc
-"""
 
 
 class VideoFeatures:  # sakuhin_dict{sakuhin_public_code: VideoFeatures}

@@ -10,12 +10,13 @@ def dict_inverse(my_map):
     return inv_map
 
 # types come from main_genre_code,
-types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS']
+types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS', 'SEMIADULT']
+types = ['movie', 'drama', 'anime', 'variety', 'music_idol', 'document', 'kids', 'news', 'semiadult']
 tpye_mapping = {
-    "FDRAMA":"DRAMA",
-    "ADRAMA":"DRAMA",
-    "YOUGA":"MOVIE",
-    "HOUGA":"MOVIE"
+    "FDRAMA":"drama",
+    "ADRAMA":"drama",
+    "YOUGA":"movie",
+    "HOUGA":"movie"
 }
 
 nations_mapping = {}
@@ -29,6 +30,7 @@ genres_mapping = {
     'アクション・バトル':'action',
     'コメディ':'comedy',
     'ギャグ・コメディ':'comedy',
+    'ドラマ':'drama',
     '刑事・探偵':'detective',
     'ドキュメンタリー':'documentary',
     'ファンタジー':'fantasy',
@@ -42,6 +44,7 @@ genres_mapping = {
     'ミュージカル・音楽':'musicals_dance',
     '音楽':'musicals_dance',
     'サスペンス・ミステリー':'mystery',
+    'キッズ':'kids',
     'ラブストーリー':'romance',
     'ラブコメディ':'romance',
     'ラブロマンス':'romance',
