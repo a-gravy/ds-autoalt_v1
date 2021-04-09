@@ -44,7 +44,7 @@ import pandas as pd
 from docopt import docopt
 import yaml
 from autoalts.daily_top import DailyTop
-from autoalts.toppick import TopPick
+# from autoalts.toppick import TopPick
 from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
 from autoalts.trending import Trending
@@ -342,6 +342,7 @@ def main():
             alt.make_alt(popular_sids_path=arguments['--popular'], already_reco_path=arguments['--already_reco'],
                          bpr_model_path=arguments["--model"])
         elif arguments['tag']:
+            # python autoalt.py tag JFET000006 --model data/implicit_bpr.model.2021-03-31 --watched_list data/user_sid_history.csv --blacklist data/filter_out_sakuhin_implicit.csv  --target_users data/superusers.csv  --series data/sid_series.csv
             alt = TagAlt(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
                              series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])

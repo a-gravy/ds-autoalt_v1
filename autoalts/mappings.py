@@ -10,14 +10,15 @@ def dict_inverse(my_map):
     return inv_map
 
 # types come from main_genre_code,
-types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS', 'SEMIADULT']
-types = ['movie', 'drama', 'anime', 'variety', 'music_idol', 'document', 'kids', 'news', 'semiadult']
+# types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS', 'SEMIADULT']
+types = ['movie', 'drama', 'anime', 'variety', 'music_idol', 'document', 'kids', 'news', 'semiadult', 'fdrama', 'adrama', 'youga', 'houga']
+"""
 tpye_mapping = {
     "FDRAMA":"drama",
     "ADRAMA":"drama",
     "YOUGA":"movie",
     "HOUGA":"movie"
-}
+}"""
 
 nations_mapping = {}
 nations = []
