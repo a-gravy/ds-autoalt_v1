@@ -2,11 +2,10 @@ import os, sys
 import logging
 import pandas as pd
 import numpy as np
-import operator
 from collections import Counter
-import itertools
 from autoalts.autoalt_maker import AutoAltMaker
 import autoalts.mappings as mapping
+import plyvel
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
@@ -110,17 +109,43 @@ class TagAlt(AutoAltMaker):
         if target_users_path:
             self.target_users = self.read_target_users(target_users_path)
 
-        self.tag_index_dict = {}  # e.g. {'日本': 0}
-        self.sid_vector = {}  # {sid: [0, 1, 1, 0, ...]}
         self.types = [s.lower() for s in mapping.types]
         self.lookup = None
+        self.sid_vector = {}  # {sid: [0, 1, 1, 0, ...]}
+
+        if os.path.exists('user_profiling_tags'):
+            logging.info("previous user_profiling_tags exists, loading Tags...")
+            self.leveldb = plyvel.DB('user_profiling_tags/', create_if_missing=False)
+            tags = self.leveldb.get('tags'.encode('utf-8'), b'').decode("utf-8")
+            self.tag_index_dict = {k: v for v, k in enumerate(tags.split('|'))}  # e.g. {'日本': 0}
+        else:
+            logging.info("no user_profiling_tags, building from scratch")
+            self.leveldb = plyvel.DB('user_profiling_tags/', create_if_missing=True)
+            self.tag_index_dict = {}  # e.g. {'日本': 0}
+
+        if os.path.exists('JFET000006'):
+            logging.info("previous JFET000006 leveldb exists, loading it")
+            self.JFET000006 = plyvel.DB('JFET000006/', create_if_missing=False)
+        else:
+            logging.info("no JFET000006 leveldb, building from scratch")
+            self.JFET000006 = plyvel.DB('JFET000006/', create_if_missing=True)
+
 
     def make_alt(self, bpr_model_path, sakuhin_meta_path='data/sakuhin_meta.csv',
                  lookup_table_path="data/sakuhin_lookup_table.csv",
                  user_sid_history_path='data/user_sid_history.csv'):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
+
+            self.output_from_levelDB()
+            """
             self.build_lookup(lookup_table_path)
+
+            if not self.tag_index_dict:
+                self.make_tag_index_dict(sakuhin_meta_path)
+
             self.ippan_sakuhin(bpr_model_path, sakuhin_meta_path, user_sid_history_path)
+            
+            """
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "adult":
@@ -130,7 +155,120 @@ class TagAlt(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
+    def make_tag_index_dict(self, sakuhin_meta_path):
+        logging.info("[Phase]- browse all tags to build a vector for all tags >= 100 counts")
+        tags_cnt = Counter()
+        # count all tags
+        for line in efficient_reading(sakuhin_meta_path, True):
+            for tag in self.tags_preprocessing(line):
+                tags_cnt[tag] = tags_cnt[tag] + 1
+
+        # build {tag:index} for vector
+        for index, (tag, cnt) in enumerate(tags_cnt.most_common()):
+            if cnt < 100:  # discard tags whose cnt < 100
+                break
+            self.tag_index_dict[tag] = index
+
+        logging.info(f"got {len(self.tag_index_dict)} Tags")
+        self.leveldb.put('tags'.encode('utf-8'), '|'.join(self.tag_index_dict.keys()).encode('utf-8'))
+
     def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
+        tag_index_list = list(self.tag_index_dict.keys())
+        logging.info("[Phase] - build tag index vector for all SIDs")
+        # build sid_vector for all SIDs
+        for line in efficient_reading(sakuhin_meta_path, True):
+            v = np.zeros(len(self.tag_index_dict))
+            for tag in self.tags_preprocessing(line):
+                if tag in tag_index_list:
+                    v[self.tag_index_dict[tag]] = 1
+            self.sid_vector[line.split(",")[0]] = v
+
+        model = self.load_model(bpr_model_path)
+
+        logging.info("[Phase] - making Tag ALTs, updating levelDB user_profiling_tags & levelDB JFET000006")
+        nb_reco_users = 0
+
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['feature_table'])
+            for line in efficient_reading(user_sid_history_path, True):
+                userid = line.split(",")[0]
+
+                if self.target_users and userid not in self.target_users:
+                    continue
+
+                # read previous user_profiling_vector from leveldb
+                user_profiling_vector = self.leveldb.get(userid.encode('utf-8'), b'').decode("utf-8")
+                if user_profiling_vector:
+                    # string -> np.array
+                    user_profiling_vector = np.array(user_profiling_vector.split('|'), dtype=float)
+                else:
+                    user_profiling_vector = np.zeros(len(self.tag_index_dict))
+
+                # build user vector based on history (from old -> new)
+                for sid in line.rstrip().split(",")[1].split("|")[::-1]:
+                    sid_vector = self.sid_vector.get(sid, [])
+                    if sid_vector != []:
+                        user_profiling_vector = user_profiling_vector * 0.9 + sid_vector
+
+                # update leveldb: np.array -> string
+                self.leveldb.put(userid.encode('utf-8'),
+                       '|'.join(['{:.3f}'.format(x) for x in user_profiling_vector]).encode('utf-8'))
+
+                # build Tag combo based on user profile
+                user_profiling = UserProfling(userid)
+                for index_tag in (np.argsort(-user_profiling_vector))[:20]:
+                    if user_profiling_vector[index_tag] < 0.01:
+                        break
+                    user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag])
+
+                # get personalized SID ranking
+                bpr_sid_list = None
+                for userid, sid_list, score_list in rank(model, target_users=[userid],
+                                                           filter_already_liked_items=True, top_n=-1, batch_size=10000):
+                    bpr_sid_list = sid_list
+
+                if not bpr_sid_list:
+                    logging.debug(f"user:{userid} has no data in the model")
+                    continue
+
+                bpr_sid_set = set(bpr_sid_list)
+
+                already_reco_sids = set()
+                nb_reco_users += 1
+
+                # output_list = [ alt_name1:SIDa|SIDb|SIDc ]
+                output_list = []
+                for combo_query, combo_name in user_profiling.alt_combo_maker(self.lookup):
+                    # part_1 = combo.split('-')[0].split(':')
+                    # part_2 = combo.split('-')[1].split(':')
+                    # condition = (self.lookup[part_1[0]] == part_1[1]) & (self.lookup[part_2[0]] == part_2[1])
+                    sids = self.do_query(combo_query)
+                    sids = self.black_list_filtering(sids)
+                    sids = self.rm_series(sids)
+                    if not sids:
+                        logging.debug(f"{combo_name} got 0 SIDs")
+                        continue
+                    alt_sids = [sids[index] for index in np.argsort(
+                        [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
+                    already_reco_sids.update(alt_sids[:10])
+
+                    output_list.append(f"{combo_name}:{'|'.join(alt_sids[:self.max_nb_reco])}")
+
+                    """
+                    w.write(
+                        f"{userid},{self.alt_info['feature_public_code'].values[0]}_{nb_alts_made+1},{self.create_date},{'|'.join(alt_sids[:self.max_nb_reco])},"
+                        f"{combo_name},{self.alt_info['domain'].values[0]},1,"
+                        f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+                    """
+                    if len(output_list) == 3:    # TODO 3 only
+                        break
+                if output_list:
+                    self.JFET000006.put(userid.encode('utf-8'), '+'.join(output_list).encode('utf-8'))
+
+        logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
+                                                                                             nb_reco_users / len(self.target_users)))
+
+    def ippan_sakuhin_from_scratch(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
         logging.info("Phase 1 - browse all tags to build a vector for all tags >= 100 counts")
         tags_cnt = Counter()
         # count all tags
@@ -145,6 +283,7 @@ class TagAlt(AutoAltMaker):
             self.tag_index_dict[tag] = index
         tag_index_list = list(self.tag_index_dict.keys())
         logging.info(f"got {len(self.tag_index_dict)} Tags")
+        self.leveldb.put('tags'.encode('utf-8'), '|'.join(self.tag_index_dict.keys()).encode('utf-8'))
 
         logging.info("Phase 2 - build tag index vector for all SIDs")
         # build sid_vector for all SIDs
@@ -174,6 +313,9 @@ class TagAlt(AutoAltMaker):
                     sid_vector = self.sid_vector.get(sid, [])
                     if sid_vector != []:
                         user_profiling_vector = user_profiling_vector * 0.9 + sid_vector
+
+                self.leveldb.put(userid.encode('utf-8'),
+                       '|'.join(['{:.3f}'.format(x) for x in user_profiling_vector]).encode('utf-8'))
 
                 # build Tag combo based on user profile
                 user_profiling = UserProfling(userid)
@@ -206,7 +348,7 @@ class TagAlt(AutoAltMaker):
                     sids = self.black_list_filtering(sids)
                     sids = self.rm_series(sids)
                     if not sids:
-                        logging.info(f"{combo_name} got 0 SIDs")
+                        logging.debug(f"{combo_name} got 0 SIDs")
                         continue
                     alt_sids = [sids[index] for index in np.argsort(
                         [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
@@ -220,134 +362,6 @@ class TagAlt(AutoAltMaker):
                     nb_alts_made += 1
                     if nb_alts_made == 3:    # TODO 3 only
                         break
-
-        logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
-                                                                                             nb_reco_users / len(self.target_users)))
-
-
-    def ippan_sakuhin_v1(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
-        logging.info("Phase 1 - browse all tags to build a vector for all tags >= 100 counts")
-        tags_cnt = Counter()
-        # count all tags
-        for line in efficient_reading(sakuhin_meta_path, True):
-            for tag in self.tags_preprocessing(line):
-                tags_cnt[tag] = tags_cnt[tag] + 1
-
-        # build {tag:index} for vector
-        for index, (tag, cnt) in enumerate(tags_cnt.most_common()):
-            if cnt < 100:  # discard tags whose cnt < 100
-                break
-            self.tag_index_dict[tag] = index
-        tag_index_list = list(self.tag_index_dict.keys())
-        logging.info(f"got {len(self.tag_index_dict)} Tags")
-
-        logging.info("Phase 2 - build tag index vector for all SIDs")
-        # build sid_vector for all SIDs
-        for line in efficient_reading(sakuhin_meta_path, True):
-            v = np.zeros(len(self.tag_index_dict))
-            for tag in self.tags_preprocessing(line):
-                if tag in tag_index_list:
-                    v[self.tag_index_dict[tag]] = 1
-            self.sid_vector[line.split(",")[0]] = v
-
-        model = self.load_model(bpr_model_path)
-
-        logging.info("Phase 3 - making Tag ALTs")
-        nb_reco_users = 0
-
-        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['feature_table'])
-            for line in efficient_reading(user_sid_history_path, True):
-                userid = line.split(",")[0]
-
-                if self.target_users and userid not in self.target_users:
-                    continue
-
-                user_profiling_vector = np.zeros(len(self.tag_index_dict))
-                # build user vector based on history (from old -> new)
-                for sid in line.rstrip().split(",")[1].split("|")[::-1]:
-                    sid_vector = self.sid_vector.get(sid, [])
-                    if sid_vector != []:
-                        user_profiling_vector = user_profiling_vector * 0.9 + sid_vector
-
-                # build Tag combo based on user profile
-                user_profiling_tags_dict = {}  # {'nation': ['日本'], 'type': ['anime', 'kids', 'drama'], ...
-                for index_tag in (np.argsort(-user_profiling_vector))[:20]:
-                    if user_profiling_vector[index_tag] < 0.01:
-                        break
-                    types = [s.lower() for s in mapping.types]
-                    if tag_index_list[index_tag].lower() in types:
-                        tag_type = 'type'
-                    elif tag_index_list[index_tag] in mapping.genres:
-                        tag_type = 'genre'
-                    elif tag_index_list[index_tag] in mapping.tags:
-                        tag_type = 'tags'
-                    else:
-                        tag_type = 'nation'
-                    user_profiling_tags_dict[tag_type] = user_profiling_tags_dict.setdefault(tag_type, []) + [
-                        tag_index_list[index_tag]]
-                    # print(f"{tag_type}-{tag_index_list[index_tag]} w/ {user_profiling_vector[index_tag]}")
-
-                # make ALT combo(e.g. genre:action-type:anime) based on user_profiling_tags_dict
-                alt_combos, nation_genre, genre_type, nation_type = [], [], [], []
-                nation_combo = []
-
-                if 'nation' in user_profiling_tags_dict and 'genre' in user_profiling_tags_dict:
-                    for nation in user_profiling_tags_dict['nation']:
-                        for combo in user_profiling_tags_dict['genre']:
-                            nation_combo.append(f'nation:{nation}-genre:{combo}')
-
-                if 'nation' in user_profiling_tags_dict and 'type' in user_profiling_tags_dict:
-                    for nation in user_profiling_tags_dict['nation']:
-                        for combo in user_profiling_tags_dict['type']:
-                            nation_combo.append(f'nation:{nation}-type:{combo}')
-
-                if 'genre' in user_profiling_tags_dict and 'type' in user_profiling_tags_dict:
-                    for genre in user_profiling_tags_dict['genre']:
-                        for combo in user_profiling_tags_dict['type']:
-                            genre_type.append(f'genre:{genre}-type:{combo}')
-
-                for combo_1, combo_2 in itertools.zip_longest(genre_type, nation_combo, fillvalue=None):
-                    if combo_1:
-                        alt_combos.append(combo_1)
-                    if combo_2:
-                        alt_combos.append(combo_2)
-
-                # get personalized SID ranking
-                bpr_sid_list = None
-                for userid, sid_list, score_list in rank(model, target_users=[userid],
-                                                           filter_already_liked_items=True, top_n=-1, batch_size=10000):
-                    bpr_sid_list = sid_list
-
-                if not bpr_sid_list:
-                    logging.debug(f"user:{userid} has no data in the model")
-                    continue
-
-                bpr_sid_set = set(bpr_sid_list)
-
-                already_reco_sids = set()
-                nb_reco_users += 1
-
-                for idx, combo in enumerate(alt_combos[:3]):  # TODO 3 only
-                    part_1 = combo.split('-')[0].split(':')
-                    part_2 = combo.split('-')[1].split(':')
-                    condition = (self.lookup[part_1[0]] == part_1[1]) & (self.lookup[part_2[0]] == part_2[1])
-                    sids = self.do_query(condition)
-                    sids = self.black_list_filtering(sids)
-                    sids = self.rm_series(sids)
-                    if not sids:
-                        combo = combo.split('-')[1]
-                        condition = self.lookup[part_2[0]] == part_2[1]
-                        sids = self.do_query(condition)
-                    alt_sids = [sids[index] for index in np.argsort(
-                        [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
-                    already_reco_sids.update(alt_sids[:10])
-
-                    # JFET000006_1, JFET000006_2, ...
-                    w.write(
-                        f"{userid},{self.alt_info['feature_public_code'].values[0]}_{idx+1},{self.create_date},{'|'.join(alt_sids[:self.max_nb_reco])},"
-                        f"{self.alt_naming(combo)},{self.alt_info['domain'].values[0]},1,"
-                        f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
         logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
                                                                                              nb_reco_users / len(self.target_users)))
@@ -402,4 +416,20 @@ class TagAlt(AutoAltMaker):
     def do_query(self, condition):
         x = list(self.lookup[condition]['sakuhin_public_code'].unique())
         return x
+
+    def output_from_levelDB(self):
+        logging.info("output to JFET000006.csv from levelDB JFET000006")
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['feature_table'])
+            for key, value in self.JFET000006:
+                userid = key.decode('utf-8')
+                output_list = value.decode("utf-8")
+                if output_list:
+                    for i, output_str in enumerate(output_list.split("+")):
+                        output_arr = output_str.split(":")
+                        combo_name = output_arr[0]
+                        w.write(
+                            f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{self.create_date},{output_arr[1]},"
+                            f"{combo_name},{self.alt_info['domain'].values[0]},1,"
+                            f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
