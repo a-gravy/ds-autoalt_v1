@@ -135,17 +135,17 @@ class TagAlt(AutoAltMaker):
                  lookup_table_path="data/sakuhin_lookup_table.csv",
                  user_sid_history_path='data/user_sid_history.csv'):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-
-            self.output_from_levelDB()
-            """
             self.build_lookup(lookup_table_path)
 
             if not self.tag_index_dict:
                 self.make_tag_index_dict(sakuhin_meta_path)
 
+            # update levelDB JFET000006 & user_profiling_tags
             self.ippan_sakuhin(bpr_model_path, sakuhin_meta_path, user_sid_history_path)
-            
-            """
+
+            # make JFET000006.csv based on levelDB JFET000006
+            self.output_from_levelDB()
+
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "adult":

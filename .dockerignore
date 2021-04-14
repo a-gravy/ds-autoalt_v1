@@ -3,6 +3,10 @@ backup
 fets
 check
 workspace
+JFET000006
+JFET000006.tar.gz
+user_profiling_tags
+user_profiling_tags.tar.gz
 tmp
 build
 dist
