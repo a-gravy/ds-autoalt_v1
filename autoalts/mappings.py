@@ -24,8 +24,8 @@ nations_mapping = {}
 nations = []
 
 # genres come from menu_name
-genres = ['action','comedy', 'detective','documentary','fantasy','historical','horror',
-          'musicals_dance', 'mystery', 'romance', 'SF', 'family','war']
+genres = ['action','comedy', 'drama', 'detective','documentary','fantasy','historical','horror',
+          'musicals_dance', 'kids', 'mystery', 'romance', 'SF', 'family','war']
 genres_mapping = {
     'アクション':'action',
     'アクション・バトル':'action',

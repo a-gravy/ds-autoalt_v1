@@ -178,9 +178,9 @@ def demo_get_dim_table():
 
 def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
-    task = "user_sid_history"  # "unext_sakuhin_meta" "sid_name_dict"
+    task = "daily_top"  # "unext_sakuhin_meta" "sid_name_dict"
 
-    in_path = os.path.join("workspace/alt/ippan_sakuhin/gp/user_sid_history.sql")
+    in_path = os.path.join("workspace/alt/ippan_sakuhin/gp/daily_top.sql")
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)

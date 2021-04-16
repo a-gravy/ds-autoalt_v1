@@ -1,6 +1,7 @@
 import logging
 import operator
 from autoalts.autoalt_maker import AutoAltMaker
+from utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
 
@@ -112,7 +113,26 @@ class DailyTop(AutoAltMaker):
     def video_domain(self, input_path):
         """
         logic:
-        make ALT_daily_top by order of nb_watch sum
+        make ALT_daily_top by order of nb_watch sum using GP datamart
+
+        """
+        sid_list = []
+
+        for line in efficient_reading(input_path, True, "sakuhin_public_code,sakuhin_name,uu,today_top_rank"):
+            sid_list.append(line.split(",")[0])
+
+        reco_str = '|'.join(sid_list[:self.max_nb_reco])
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['feature_table'])
+            # TODO: user_multi_account_id
+            w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+
+    def video_domain_td(self, input_path):
+        """
+        logic:
+        make ALT_daily_top by order of nb_watch sum  using td data
 
         """
         sid_nb = {}  # SID: nb of watch

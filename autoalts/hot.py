@@ -13,10 +13,10 @@ class Trending(AutoAltMaker):
         if target_users_path:
             self.target_users = self.read_target_users(target_users_path)
 
-    def make_alt(self, trending_path, toppick_path, bpr_model_path):
+    def make_alt(self, raw_path_top, dailytop_path, toppick_path, bpr_model_path):
         logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(trending_path, toppick_path, bpr_model_path)
+            self.ippan_sakuhin(raw_path_top, dailytop_path, toppick_path, bpr_model_path)
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -24,16 +24,16 @@ class Trending(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
-    def ippan_sakuhin(self, trending_path, toppick_path, bpr_model_path):
+    def ippan_sakuhin(self, raw_path_top, dailytop_path, toppick_path, bpr_model_path):
         pool_SIDs = set()
-        # "episode_code,SID,display_name,main_genre_code,nb_watch"
-        for line in efficient_reading(trending_path, True, "today_top_rank,sakuhin_public_code,sakuhin_name,uu,zenkai_uu,trend_perc"):
-            arr = line.rstrip().split(",")
-            if float(arr[-1]) < 1.0:
-                break
+        for line in efficient_reading(raw_path_top, True, "episode_code,SID,display_name,main_genre_code,nb_watch"):
             pool_SIDs.add(line.split(",")[1])
 
         logging.info(f"nb of SID in pool = {len(pool_SIDs)}")
+
+        for line in efficient_reading(dailytop_path, True,
+                                      "user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt,feature_public_start_datetime,feature_public_end_datetime"):
+            daily_top_SIDs = line.split(",")[3].split("|")
 
         toppick_dict = {}  # user:list(SID)
         for line in efficient_reading(toppick_path, True, "user_multi_account_id,platform,block,sakuhin_codes,feature_name,sub_text,score,create_date"):
@@ -41,6 +41,8 @@ class Trending(AutoAltMaker):
             # Only remove top 5 SIDs, since user may only see the top 5
             toppick_dict[arr[0]] = arr[3].split("|")[:5]
 
+        pool_SIDs = pool_SIDs - set(daily_top_SIDs)
+        logging.info(f"nb of SID in pool after removal daily_top = {len(pool_SIDs)}")
         pool_SIDs = self.rm_series(pool_SIDs)
         logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
 
