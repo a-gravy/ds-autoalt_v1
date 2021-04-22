@@ -37,6 +37,8 @@ class UserProfling():
             "VARIETY": "バラエティ"
         }
 
+        self.cant_combo_types = ["YOUGA", "HOUGA", "FDRAMA", "ADRAMA", "DRAMA"]
+
     def score_processing(self, score):  # 6.91665654355 -> 6.91
         return int(score * 100) / float(100)
 
@@ -70,8 +72,6 @@ class UserProfling():
         if self.nation_bucket and self.genre_bucket:
             nation_name = self.nation_bucket.pop(0)[0]
             genre_name = self.genre_bucket.pop(0)[0]
-            # combo_name.append(self.alt_naming(f'nation:{nation_name}-genre:{genre_name}'))
-            # combo_query.append((lookup['nation'] == nation_name) & (lookup['genre'] == genre_name))
             combo_name.append(self.alt_naming('nation+genre', **{'nation':nation_name, 'genre':genre_name}))
             combo_query.append([nation_name, genre_name])
 
@@ -80,32 +80,24 @@ class UserProfling():
         if self.genre_bucket and self.type_bucket:
             genre_name = self.genre_bucket.pop(0)[0]
             type_name = self.type_bucket.pop(0)[0]
-            # combo_name.append(self.alt_naming(f'genre:{genre_name}-type:{type_name}'))
-            # combo_query.append((lookup['genre'] == genre_name) & (lookup['type'] == type_name))
             combo_name.append(self.alt_naming('type+genre', **{'type':self.type_name_converting[type_name], 'genre':genre_name}))
             combo_query.append([genre_name, type_name])
 
         # 3. type
         if self.type_bucket:
             type_name = self.type_bucket.pop(0)[0]
-            #combo_name.append(self.alt_naming(f"type:{type_name}"))
-            #combo_query.append(lookup['type'] == type_name)
             combo_name.append(self.alt_naming("type", **{'type':self.type_name_converting[type_name]}))
             combo_query.append([type_name])
 
         # 4. nation
         if self.nation_bucket:
             nation_name = self.nation_bucket.pop(0)[0]
-            # combo_name.append(self.alt_naming(f'nation:{nation_name}'))
-            # combo_query.append(lookup['nation'] == nation_name)
             combo_name.append(self.alt_naming("nation", **{'nation': nation_name}))
             combo_query.append([nation_name])
 
         # 5. genre
         if self.genre_bucket:
             genre_name = self.genre_bucket.pop(0)[0]
-            # combo_name.append(self.alt_naming(f'genre:{genre_name}'))
-            # combo_query.append(lookup['genre'] == genre_name)
             combo_name.append(self.alt_naming("genre", **{'genre': genre_name}))
             combo_query.append([genre_name])
 
