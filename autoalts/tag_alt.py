@@ -2,9 +2,8 @@ import os, sys
 import logging
 import pandas as pd
 import numpy as np
-from collections import Counter
+from collections import Counter, defaultdict
 from autoalts.autoalt_maker import AutoAltMaker
-import autoalts.mappings as mapping
 import plyvel
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
@@ -24,20 +23,37 @@ class UserProfling():
         self.type_bucket = []
         # self.tag_bucket = []
 
+        self.type_name_converting = {
+            "YOUGA": "洋画",
+            "HOUGA": "邦画",
+            "FDRAMA": "海外ドラマ",
+            "ADRAMA": "韓流・アジアドラマ",
+            "DRAMA": "国内ドラマ",
+            "ANIME": "アニメ",
+            "KIDS": "キッズ",
+            "DOCUMENT": "ドキュメンタリー",
+            "MUSIC_IDOL": "音楽・アイドル",
+            "SPORT": "スポーツ",
+            "VARIETY": "バラエティ"
+        }
+
     def score_processing(self, score):  # 6.91665654355 -> 6.91
         return int(score * 100) / float(100)
 
-    def add(self, tag, tag_score):
+    def add(self, tag, tag_score, type_set, genre_set, nation_set):
         tag_score = self.score_processing(tag_score)
-        if tag.lower() in mapping.types:
-            self.type_bucket.append((tag, tag_score))
-        elif tag in mapping.genres:
-            self.genre_bucket.append((tag, tag_score))
-        elif tag in mapping.tags:
-            pass
-            # self.nation_bucket.append((tag, tag_score))
+
+        if tag in type_set:
+            if tag == "SEMIADULT":
+                return
+            else:
+                bucket = self.type_bucket
+        elif tag in nation_set:
+            bucket = self.nation_bucket
         else:
-            self.nation_bucket.append((tag, tag_score))
+            bucket = self.genre_bucket
+
+        bucket.append((tag, tag_score))
 
     def show_info(self):
         print(f"user {self.userid}")
@@ -45,7 +61,7 @@ class UserProfling():
         print("genre: ", self.genre_bucket)
         print("type: ", self.type_bucket)
 
-    def alt_combo_maker(self, lookup):
+    def alt_combo_maker(self):
         # Rule-base version
         combo_query = []
         combo_name = []
@@ -54,51 +70,70 @@ class UserProfling():
         if self.nation_bucket and self.genre_bucket:
             nation_name = self.nation_bucket.pop(0)[0]
             genre_name = self.genre_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming(f'nation:{nation_name}-genre:{genre_name}'))
-            combo_query.append((lookup['nation'] == nation_name) & (lookup['genre'] == genre_name))
+            # combo_name.append(self.alt_naming(f'nation:{nation_name}-genre:{genre_name}'))
+            # combo_query.append((lookup['nation'] == nation_name) & (lookup['genre'] == genre_name))
+            combo_name.append(self.alt_naming('nation+genre', **{'nation':nation_name, 'genre':genre_name}))
+            combo_query.append([nation_name, genre_name])
 
+        # TODO: special case for HOUGA, YOUGA, DRAMA, ADRAMA, FDRAMA
         # 2. genre - type
         if self.genre_bucket and self.type_bucket:
             genre_name = self.genre_bucket.pop(0)[0]
             type_name = self.type_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming(f'genre:{genre_name}-type:{type_name}'))
-            combo_query.append((lookup['genre'] == genre_name) & (lookup['type'] == type_name))
+            # combo_name.append(self.alt_naming(f'genre:{genre_name}-type:{type_name}'))
+            # combo_query.append((lookup['genre'] == genre_name) & (lookup['type'] == type_name))
+            combo_name.append(self.alt_naming('type+genre', **{'type':self.type_name_converting[type_name], 'genre':genre_name}))
+            combo_query.append([genre_name, type_name])
 
         # 3. type
         if self.type_bucket:
             type_name = self.type_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming(f"type:{type_name}"))
-            combo_query.append(lookup['type'] == type_name)
+            #combo_name.append(self.alt_naming(f"type:{type_name}"))
+            #combo_query.append(lookup['type'] == type_name)
+            combo_name.append(self.alt_naming("type", **{'type':self.type_name_converting[type_name]}))
+            combo_query.append([type_name])
 
         # 4. nation
         if self.nation_bucket:
             nation_name = self.nation_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming(f'nation:{nation_name}'))
-            combo_query.append(lookup['nation'] == nation_name)
+            # combo_name.append(self.alt_naming(f'nation:{nation_name}'))
+            # combo_query.append(lookup['nation'] == nation_name)
+            combo_name.append(self.alt_naming("nation", **{'nation': nation_name}))
+            combo_query.append([nation_name])
 
         # 5. genre
         if self.genre_bucket:
             genre_name = self.genre_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming(f'genre:{genre_name}'))
-            combo_query.append(lookup['genre'] == genre_name)
+            # combo_name.append(self.alt_naming(f'genre:{genre_name}'))
+            # combo_query.append(lookup['genre'] == genre_name)
+            combo_name.append(self.alt_naming("genre", **{'genre': genre_name}))
+            combo_query.append([genre_name])
 
-        for query, name in zip(combo_query, combo_name):
-            yield query, name
+        return combo_query, combo_name
+        #for query, name in zip(combo_query, combo_name):
+        #    yield query, name
 
-    def alt_naming(self, combo):
+    def alt_naming(self, combo, **kwargs):
         """
         :param combo: e.g. nation:日本-genre:action / genre:action-type:anime  / type:anime
         :return:
         """
-        arr = combo.split('-')
-
-        part_1 = arr[0].split(':')[1]
-        if len(arr) == 2:
-
-            part_2 = arr[1].split(':')[1]
-            return f"{part_1}の{part_2}"
+        if combo == "nation+type":
+            return f"{kwargs['type']}/{kwargs['nation']}のおすすめ"
+        elif combo == "nation+genre":
+            return f"{kwargs['nation']}/{kwargs['genre']}"
+        elif combo == "type+genre":
+            return f"{kwargs['type']}/{kwargs['genre']}"
+        elif combo == "nation":
+            return f"{kwargs['nation']}のピックアップ"
+        elif combo == "type":
+            return f"{kwargs['type']}のおすすめ"
+        elif combo == "genre":
+            return f"{kwargs['genre']}のおすすめ"
         else:
-            return f"{part_1}"
+            raise Exception(f"WRONG COMBO {combo}")
+
+
 
 
 class TagAlt(AutoAltMaker):
@@ -109,9 +144,12 @@ class TagAlt(AutoAltMaker):
         if target_users_path:
             self.target_users = self.read_target_users(target_users_path)
 
-        self.types = [s.lower() for s in mapping.types]
-        self.lookup = None
+        # self.types = [s.lower() for s in mapping.types]
+        self.inverted_index = None
         self.sid_vector = {}  # {sid: [0, 1, 1, 0, ...]}
+        self.type_set = set()
+        self.genre_set = set()
+        self.nation_set = set()
 
         if os.path.exists('user_profiling_tags'):
             logging.info("previous user_profiling_tags exists, loading Tags...")
@@ -156,14 +194,29 @@ class TagAlt(AutoAltMaker):
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
     def make_tag_index_dict(self, sakuhin_meta_path):
+        """
+        go through all tags of all 作品, make index of Tag:
+
+        output:
+        * self.tag_index_dict:  {tag : index of tag}
+        * save as levelDB tags: tag|tag|tag ...
+
+        """
         logging.info("[Phase]- browse all tags to build a vector for all tags >= 100 counts")
         tags_cnt = Counter()
+
         # count all tags
         for line in efficient_reading(sakuhin_meta_path, True):
-            for tag in self.tags_preprocessing(line):
-                tags_cnt[tag] = tags_cnt[tag] + 1
+            sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
+            self.type_set.add(sid_type)
+            self.genre_set.update(sid_genres)
+            self.nation_set.update(sid_nations)
+
+            for x in [sid_type] + list(sid_genres) + list(sid_nations):
+                tags_cnt[x] = tags_cnt[x] + 1
 
         # build {tag:index} for vector
+        del tags_cnt['""']  # remove empty string
         for index, (tag, cnt) in enumerate(tags_cnt.most_common()):
             if cnt < 100:  # discard tags whose cnt < 100
                 break
@@ -174,16 +227,27 @@ class TagAlt(AutoAltMaker):
 
     def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
         tag_index_list = list(self.tag_index_dict.keys())
+        print('tag_index_list = ', tag_index_list)
+
         logging.info("[Phase] - build tag index vector for all SIDs")
         # build sid_vector for all SIDs
         for line in efficient_reading(sakuhin_meta_path, True):
             v = np.zeros(len(self.tag_index_dict))
-            for tag in self.tags_preprocessing(line):
-                if tag in tag_index_list:
-                    v[self.tag_index_dict[tag]] = 1
+            sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
+            for x in [sid_type] + list(sid_genres) + list(sid_nations):
+                tag_index = self.tag_index_dict.get(x, None)
+                if tag_index:
+                    v[tag_index] = 1
             self.sid_vector[line.split(",")[0]] = v
 
         model = self.load_model(bpr_model_path)
+
+        # for bucket categorization
+        for line in efficient_reading(sakuhin_meta_path, True):
+            sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
+            self.type_set.add(sid_type)
+            self.genre_set.update(sid_genres)
+            self.nation_set.update(sid_nations)
 
         logging.info("[Phase] - making Tag ALTs, updating levelDB user_profiling_tags & levelDB JFET000006")
         nb_reco_users = 0
@@ -219,7 +283,8 @@ class TagAlt(AutoAltMaker):
                 for index_tag in (np.argsort(-user_profiling_vector))[:20]:
                     if user_profiling_vector[index_tag] < 0.01:
                         break
-                    user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag])
+                    user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag],
+                                       self.type_set, self.genre_set, self.nation_set)
 
                 # get personalized SID ranking
                 bpr_sid_list = None
@@ -234,19 +299,17 @@ class TagAlt(AutoAltMaker):
                 bpr_sid_set = set(bpr_sid_list)
 
                 already_reco_sids = set()
-                nb_reco_users += 1
-
                 # output_list = [ alt_name1:SIDa|SIDb|SIDc ]
                 output_list = []
-                for combo_query, combo_name in user_profiling.alt_combo_maker(self.lookup):
-                    # part_1 = combo.split('-')[0].split(':')
-                    # part_2 = combo.split('-')[1].split(':')
-                    # condition = (self.lookup[part_1[0]] == part_1[1]) & (self.lookup[part_2[0]] == part_2[1])
+                combo_queries, combo_names = user_profiling.alt_combo_maker()
+
+                for combo_query, combo_name in zip(combo_queries, combo_names): #user_profiling.alt_combo_maker():
                     sids = self.do_query(combo_query)
                     sids = self.black_list_filtering(sids)
                     sids = self.rm_series(sids)
-                    if not sids:
-                        logging.debug(f"{combo_name} got 0 SIDs")
+                    # sids = list(sids)
+                    if len(sids) < self.min_nb_reco:
+                        logging.debug(f"{combo_name} got too less SIDs")
                         continue
                     alt_sids = [sids[index] for index in np.argsort(
                         [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
@@ -254,16 +317,18 @@ class TagAlt(AutoAltMaker):
 
                     output_list.append(f"{combo_name}:{'|'.join(alt_sids[:self.max_nb_reco])}")
 
-                    """
-                    w.write(
-                        f"{userid},{self.alt_info['feature_public_code'].values[0]}_{nb_alts_made+1},{self.create_date},{'|'.join(alt_sids[:self.max_nb_reco])},"
-                        f"{combo_name},{self.alt_info['domain'].values[0]},1,"
-                        f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
-                    """
                     if len(output_list) == 3:    # TODO 3 only
                         break
                 if output_list:
                     self.JFET000006.put(userid.encode('utf-8'), '+'.join(output_list).encode('utf-8'))
+
+                    # TODO: rm
+                    #for i in range(len(output_list)):
+                    #    w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{output_list[i]}\n")
+
+                nb_reco_users += 1
+                if nb_reco_users % 1000 == 1:
+                    logging.info(f"{nb_reco_users} users got processed")
 
         logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
                                                                                              nb_reco_users / len(self.target_users)))
@@ -371,51 +436,39 @@ class TagAlt(AutoAltMaker):
         arr = line.rstrip().split(",")
 
         # preprocess for main_genre_code
-        # sid_type = mapping.tpye_mapping.get(arr[2], arr[2]).lower()
+        sid_type = arr[2]  # .lower()
 
         # preprocess for menu_names & parent_menu_names
-        sid_tags = set([arr[2].lower()])
-        for menu_name in arr[3].split("|") + arr[4].split("|"):
-            genre = mapping.genres_mapping.get(menu_name, None)
-            if genre:
-                sid_tags.add(genre)
-            elif menu_name in mapping.tags:
-                sid_tags.add(menu_name)
+        sid_genres = set()
+        for menu_name in arr[3].split("|"):  # + arr[4].split("|"):
+            sid_genres.add(menu_name)
 
         # preprocess for nations
+        sid_nations = []
         if arr[5] != '':
-            for nation in arr[5].split("/"):
-                sid_tags.add(nation)
+            sid_nations = arr[5].split("/")
 
-        return sid_tags
+        return sid_type, sid_genres, set(sid_nations)
 
     def build_lookup(self, lookup_table_path):
-        self.lookup = pd.read_csv(lookup_table_path)
+        self.inverted_index = defaultdict(set)  # {'key': set( SIDs )}
 
-        #def type_mapping(typename):
-        #    return mapping.tpye_mapping.get(typename, typename)
-
-        def genre_mapping(menu_name):
-            genre = mapping.genres_mapping.get(menu_name, None)
-            if genre:
-                return genre
-            else:
-                return None
-
-        def tag_mapping(menu_name):
-            if menu_name in mapping.tags:
-                return menu_name
-            else:
-                return None
-
-        self.lookup['genre'] = list(map(genre_mapping, self.lookup['menu_name'].str.lower()))
-        self.lookup['tag'] = list(map(tag_mapping, self.lookup['menu_name'].str.lower()))
-        self.lookup['type'] = list(self.lookup['main_genre_code'].str.lower())
+        for line in efficient_reading(lookup_table_path, True):
+            arr = line.rstrip().split(",")
+            SID = arr[0]
+            self.inverted_index[arr[2]].add(SID)  # main_genre_code
+            self.inverted_index[arr[3]].add(SID)  # menu_name
+            self.inverted_index[arr[5]].add(SID)  # nation
         logging.info("ALT lookup table built")
 
     def do_query(self, condition):
-        x = list(self.lookup[condition]['sakuhin_public_code'].unique())
-        return x
+        query_sids = set()
+        for key_word in condition:
+            if not query_sids:
+                query_sids = self.inverted_index[key_word]
+            else:
+                query_sids = query_sids & self.inverted_index[key_word]
+        return query_sids  # set of SIDs
 
     def output_from_levelDB(self):
         logging.info("output to JFET000006.csv from levelDB JFET000006")

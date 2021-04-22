@@ -10,7 +10,6 @@ def dict_inverse(my_map):
     return inv_map
 
 # types come from main_genre_code,
-# types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS', 'SEMIADULT']
 types = ['movie', 'drama', 'anime', 'variety', 'music_idol', 'document', 'kids', 'news', 'semiadult', 'fdrama', 'adrama', 'youga', 'houga']
 """
 tpye_mapping = {
@@ -25,7 +24,7 @@ nations = []
 
 # genres come from menu_name
 genres = ['action','comedy', 'drama', 'detective','documentary','fantasy','historical','horror',
-          'musicals_dance', 'kids', 'mystery', 'romance', 'SF', 'family','war']
+          'musicals_dance', 'mystery', 'romance', 'SF', 'family','war']
 genres_mapping = {
     'アクション':'action',
     'アクション・バトル':'action',
@@ -45,12 +44,11 @@ genres_mapping = {
     'ミュージカル・音楽':'musicals_dance',
     '音楽':'musicals_dance',
     'サスペンス・ミステリー':'mystery',
-    'キッズ':'kids',
     'ラブストーリー':'romance',
     'ラブコメディ':'romance',
     'ラブロマンス':'romance',
     'ラブストーリー・ラブコメディ':'romance',
-    'ロマンスシネマ':'romance',
+    'ロマンスシネマ':'romance',  # semi-adult
     'ファミリー・キッズ':'family',
     '戦争':'war',
     'ミリタリー':'war',
