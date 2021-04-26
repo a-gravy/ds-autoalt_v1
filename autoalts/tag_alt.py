@@ -117,15 +117,13 @@ class UserProfling():
         elif combo == "type+genre":
             return f"{kwargs['type']}/{kwargs['genre']}"
         elif combo == "nation":
-            return f"{kwargs['nation']}のピックアップ"
+            return f"製作国:{kwargs['nation']}のピックアップ"
         elif combo == "type":
             return f"{kwargs['type']}のおすすめ"
         elif combo == "genre":
             return f"{kwargs['genre']}のおすすめ"
         else:
             raise Exception(f"WRONG COMBO {combo}")
-
-
 
 
 class TagAlt(AutoAltMaker):
@@ -161,9 +159,9 @@ class TagAlt(AutoAltMaker):
             self.JFET000006 = plyvel.DB('JFET000006/', create_if_missing=True)
 
 
-    def make_alt(self, bpr_model_path, sakuhin_meta_path='data/sakuhin_meta.csv',
-                 lookup_table_path="data/sakuhin_lookup_table.csv",
-                 user_sid_history_path='data/user_sid_history.csv'):
+    def make_alt(self, bpr_model_path, user_sid_history_path,
+                 already_reco_path='data/already_reco_SIDs.csv', sakuhin_meta_path='data/sakuhin_meta.csv',
+                 lookup_table_path="data/sakuhin_lookup_table.csv"):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.build_lookup(lookup_table_path)
 
@@ -171,7 +169,7 @@ class TagAlt(AutoAltMaker):
                 self.make_tag_index_dict(sakuhin_meta_path)
 
             # update levelDB JFET000006 & user_profiling_tags
-            self.ippan_sakuhin(bpr_model_path, sakuhin_meta_path, user_sid_history_path)
+            self.ippan_sakuhin(bpr_model_path, sakuhin_meta_path, user_sid_history_path, already_reco_path)
 
             # make JFET000006.csv based on levelDB JFET000006
             self.output_from_levelDB()
@@ -217,7 +215,7 @@ class TagAlt(AutoAltMaker):
         logging.info(f"got {len(self.tag_index_dict)} Tags")
         self.leveldb.put('tags'.encode('utf-8'), '|'.join(self.tag_index_dict.keys()).encode('utf-8'))
 
-    def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
+    def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path, already_reco_path):
         tag_index_list = list(self.tag_index_dict.keys())
         print('tag_index_list = ', tag_index_list)
 
@@ -231,6 +229,8 @@ class TagAlt(AutoAltMaker):
                 if tag_index:
                     v[tag_index] = 1
             self.sid_vector[line.split(",")[0]] = v
+
+        self.read_already_reco_sids(already_reco_path)
 
         model = self.load_model(bpr_model_path)
 
@@ -290,7 +290,9 @@ class TagAlt(AutoAltMaker):
 
                 bpr_sid_set = set(bpr_sid_list)
 
-                already_reco_sids = set()
+                # prevent duplicates
+                # read toppick[:5], trending[:5], popular[:5] as default, then update every Tag ALT
+                already_reco_sids = self.already_reco_dict.get(userid, set())
                 # output_list = [ alt_name1:SIDa|SIDb|SIDc ]
                 output_list = []
                 combo_queries, combo_names = user_profiling.alt_combo_maker()
@@ -305,9 +307,9 @@ class TagAlt(AutoAltMaker):
                         continue
                     alt_sids = [sids[index] for index in np.argsort(
                         [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
-                    already_reco_sids.update(alt_sids[:10])
+                    already_reco_sids.update(alt_sids[:5])
 
-                    output_list.append(f"{combo_name}:{'|'.join(alt_sids[:self.max_nb_reco])}")
+                    output_list.append(f"{combo_name}={'|'.join(alt_sids[:self.max_nb_reco])}")
 
                     if len(output_list) == 3:    # TODO 3 only
                         break
@@ -471,7 +473,7 @@ class TagAlt(AutoAltMaker):
                 output_list = value.decode("utf-8")
                 if output_list:
                     for i, output_str in enumerate(output_list.split("+")):
-                        output_arr = output_str.split(":")
+                        output_arr = output_str.split("=")
                         combo_name = output_arr[0]
                         w.write(
                             f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{self.create_date},{output_arr[1]},"

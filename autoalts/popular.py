@@ -34,15 +34,15 @@ class Popular(AutoAltMaker):
         pool_SIDs = self.rm_series(pool_SIDs)
         logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
 
-        already_reco = {}  # userid, SID|SID|...
-        for line in efficient_reading(already_reco_path, True, "userid,sid_list"):
-            arr = line.rstrip().split(",")
-            already_reco[arr[0]] = arr[1]
+        self.read_already_reco_sids(already_reco_path)
 
         model = self.load_model(bpr_model_path)
 
         nb_all_users = 0
         nb_output_users = 0
+
+        already_reco_output = open("already_reco_SIDs.csv", "w")
+        already_reco_output.write("userid,sid_list\n")
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
@@ -53,13 +53,10 @@ class Popular(AutoAltMaker):
                     logging.info(
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
-                rm_sids = already_reco.get(userid, None)
-                if rm_sids:
-                    rm_sids = set(rm_sids.split('|'))
-                    sid_list = [sid for sid in sid_list if sid not in rm_sids]
-
-                reco = self.black_list_filtering(sid_list)
-                # reco = self.rm_duplicates(reco)
+                # remove blacklist & already_reco SIDs
+                rm_sids = self.blacklist | self.already_reco_dict.get(userid, set())
+                reco = [SID for SID in sid_list if SID not in rm_sids]
+                already_reco_output.write(f"{userid},{ '|'.join(list(self.already_reco_dict.get(userid, set())) + reco[:5])}\n")
 
                 if len(reco) < self.min_nb_reco:
                     continue

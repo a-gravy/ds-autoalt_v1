@@ -6,7 +6,7 @@ Usage:
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py trending <feature_public_code> --model=PATH --trending=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py popular <feature_public_code> --model=PATH --popular=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
@@ -337,14 +337,14 @@ def main():
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(trending_path=arguments['--trending'], toppick_path=arguments['--toppick'], bpr_model_path=arguments["--model"])
         elif arguments["popular"]:
-            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --popular data/popular.csv --already_reco data/already_reco_for_popular.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv --series data/sid_series.csv
+            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --popular data/popular.csv --already_reco data/already_reco_SIDs.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv --series data/sid_series.csv
             alt = Popular(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
                              series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(popular_sids_path=arguments['--popular'], already_reco_path=arguments['--already_reco'],
                          bpr_model_path=arguments["--model"])
         elif arguments['tag']:
-            # python autoalt.py tag JFET000006 --model data/implicit_bpr.model.2021-03-31 --watched_list data/user_sid_history.csv --blacklist data/filter_out_sakuhin_implicit.csv  --target_users data/superusers.csv  --series data/sid_series.csv
+            # python autoalt.py tag JFET000006 --model data/implicit_bpr.model.2021-03-21 --watched_list data/user_sid_history_daily.csv  --already_reco data/already_reco_SIDs.csv   --blacklist data/filter_out_sakuhin_implicit.csv  --target_users data/superusers.csv  --series data/sid_series.csv
             alt = TagAlt(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
                              series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
                              max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])

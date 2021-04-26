@@ -50,7 +50,7 @@ class Trending(AutoAltMaker):
         nb_output_users = 0
 
         # for popular, record the
-        already_reco_output = open("already_reco_for_popular.csv", "w")
+        already_reco_output = open("already_reco_SIDs.csv", "w")
         already_reco_output.write("userid,sid_list\n")
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
@@ -64,20 +64,18 @@ class Trending(AutoAltMaker):
                     logging.info(
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
-                toppick_sids = toppick_dict.get(userid, None)
+                toppick_sids = toppick_dict.get(userid, set())
                 if toppick_sids:
-                    already_reco_output.write(f"{userid},{'|'.join(sid_list + toppick_sids)}\n")
-
                     toppick_sids = set(toppick_sids)
                     sid_list = [sid for sid in sid_list if sid not in toppick_sids]
-                else:
-                    already_reco_output.write(f"{userid},{'|'.join(sid_list)}\n")
 
                 reco = self.black_list_filtering(sid_list)
                 reco = self.rm_duplicates(reco)
 
                 if len(reco) < self.min_nb_reco:
                     continue
+
+                already_reco_output.write(f"{userid},{'|'.join(sid_list[:5] + list(toppick_sids))}\n")  # rm top 5 only
 
                 w.write(
                     f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
