@@ -22,8 +22,8 @@ build_whl:
 
 build_docker:
 	echo "$(IMAGE)"
-	docker build -t $(IMAGE) .
-	# docker build -t $(IMAGE_LATEST) .
+	# docker build -t $(IMAGE) .
+	docker build -t $(IMAGE_LATEST) .
 	# docker build -t $(IMAGE) -t $(IMAGE_LATEST) .
 
 clean:
@@ -32,8 +32,8 @@ clean:
 
 push_to_harbor:
 	echo $(REPOSITORY)
-	# docker push $(IMAGE_LATEST)
-	docker push $(IMAGE)
+	docker push $(IMAGE_LATEST)
+	# docker push $(IMAGE)
 
 
 #build: clean build_egg build_docker
