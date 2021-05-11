@@ -476,7 +476,7 @@ class TagAlt(AutoAltMaker):
                         output_arr = output_str.split("=")
                         combo_name = output_arr[0]
                         w.write(
-                            f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{self.create_date},{output_arr[1]},"
+                            f"{userid},{self.alt_info['feature_public_code'].values[0]}{i + 1},{self.create_date},{output_arr[1]},"
                             f"{combo_name},{self.alt_info['domain'].values[0]},1,"
                             f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
