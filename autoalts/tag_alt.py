@@ -21,7 +21,8 @@ class UserProfling():
         self.nation_bucket = []
         self.genre_bucket = []
         self.type_bucket = []
-        # self.tag_bucket = []
+        self.person_bucket = []
+        # self.tag_bucket = []  # all other tags are called genre
 
         self.type_name_converting = {
             "YOUGA": "洋画",
@@ -52,8 +53,10 @@ class UserProfling():
                 bucket = self.type_bucket
         elif tag in nation_set:
             bucket = self.nation_bucket
-        else:
+        elif tag in genre_set:
             bucket = self.genre_bucket
+        else:
+            bucket = self.person_bucket
 
         bucket.append((tag, tag_score))
 
@@ -62,8 +65,9 @@ class UserProfling():
         print("nation: ", self.nation_bucket)
         print("genre: ", self.genre_bucket)
         print("type: ", self.type_bucket)
+        print("person: ", self.person_bucket)
 
-    def alt_combo_maker(self):
+    def alt_combo_maker(self, person_meta_dict, sakuhin_query_table):
         # Rule-base version
         combo_query = []
         combo_name = []
@@ -73,6 +77,7 @@ class UserProfling():
             nation_name = self.nation_bucket.pop(0)[0]
             genre_name = self.genre_bucket.pop(0)[0]
             combo_name.append(self.alt_naming('nation+genre', **{'nation':nation_name, 'genre':genre_name}))
+            # combo_sids.append(sakuhin_query_table.do_query([nation_name, genre_name]))
             combo_query.append([nation_name, genre_name])
 
         # TODO: special case for HOUGA, YOUGA, DRAMA, ADRAMA, FDRAMA
@@ -82,28 +87,42 @@ class UserProfling():
             type_name = self.type_bucket.pop(0)[0]
             combo_name.append(self.alt_naming('type+genre', **{'type':self.type_name_converting[type_name], 'genre':genre_name}))
             combo_query.append([genre_name, type_name])
+            # combo_sids.append(sakuhin_query_table.do_query([genre_name, type_name]))
 
         # 3. type
         if self.type_bucket:
             type_name = self.type_bucket.pop(0)[0]
             combo_name.append(self.alt_naming("type", **{'type':self.type_name_converting[type_name]}))
             combo_query.append([type_name])
+            # combo_sids.append(sakuhin_query_table.do_query([type_name]))
 
-        # 4. nation
+        # 4. person
+        if self.person_bucket:
+            person_name_id = self.person_bucket.pop(0)[0]
+            person = person_meta_dict.get(person_name_id, None)
+            if person:
+                combo_name.append(self.alt_naming("person", **{'person': person.person_name}))
+            combo_query.append(person.sids)
+
+        # 5. nation
         if self.nation_bucket:
             nation_name = self.nation_bucket.pop(0)[0]
             combo_name.append(self.alt_naming("nation", **{'nation': nation_name}))
             combo_query.append([nation_name])
 
-        # 5. genre
+        # 6. genre
         if self.genre_bucket:
             genre_name = self.genre_bucket.pop(0)[0]
             combo_name.append(self.alt_naming("genre", **{'genre': genre_name}))
             combo_query.append([genre_name])
 
-        return combo_query, combo_name
-        #for query, name in zip(combo_query, combo_name):
-        #    yield query, name
+        # return combo_sids, combo_name
+        for query, name in zip(combo_query, combo_name):
+            if len(query) > 3:  # special case person.sids: don't need query
+                combo_sids = query
+            else:
+                combo_sids = sakuhin_query_table.do_query(query)
+            yield combo_sids, name
 
     def alt_naming(self, combo, **kwargs):
         """
@@ -122,8 +141,58 @@ class UserProfling():
             return f"{kwargs['type']}のおすすめ"
         elif combo == "genre":
             return f"{kwargs['genre']}のおすすめ"
+        elif combo == "person":
+            return f"{kwargs['person']}の作品のおすすめ"
         else:
             raise Exception(f"WRONG COMBO {combo}")
+
+
+class PersonMeta:
+    def __init__(self, person_name):
+        # self.person_name_id = None
+        self.type = None
+        self.person_name = person_name
+        self.sids = []
+
+    def add_sid(self, sids):
+        self.sids = sids
+
+
+class SIDQueryTable:
+    """
+    build a inverted_index table for querying SIDs by conditions
+
+    self.inverted_index =
+    * {'tag': set( SIDs )}
+    * {'tag+tag': set( SIDs )} <- auto adding while querying a new combo
+    """
+    def __init__(self, lookup_table_path):
+        self.inverted_index = defaultdict(set)  # {'one tag': set( SIDs )}
+        for line in efficient_reading(lookup_table_path, True):
+            arr = line.rstrip().split(",")
+            SID = arr[0]
+            self.inverted_index[arr[2]].add(SID)  # main_genre_code
+            self.inverted_index[arr[3]].add(SID)  # menu_name
+            self.inverted_index[arr[5]].add(SID)  # nation
+        logging.info("ALT lookup table built")
+
+    def do_query(self, condition):
+        if len(condition) == 1:  # only one tag query
+            return self.inverted_index[condition[0]]
+        else:
+            combo = f"{condition[0]}+{condition[1]}"  # support most 2 tags
+            if combo in self.inverted_index:
+                return self.inverted_index[combo]
+            else:
+                query_sids = set()
+                for key_word in condition:
+                    if not query_sids:
+                        query_sids = self.inverted_index[key_word]
+                    else:
+                        query_sids = query_sids & self.inverted_index[key_word]
+                self.inverted_index[combo] = query_sids  # add new query result
+
+                return query_sids  # set of SIDs
 
 
 class TagAlt(AutoAltMaker):
@@ -135,11 +204,29 @@ class TagAlt(AutoAltMaker):
             self.target_users = self.read_target_users(target_users_path)
 
         # self.types = [s.lower() for s in mapping.types]
-        self.inverted_index = None
+
         self.sid_vector = {}  # {sid: [0, 1, 1, 0, ...]}
         self.type_set = set()
         self.genre_set = set()
         self.nation_set = set()
+        self.sid_cast_dict = {}  # sid: [person_name_id],  for concat w/ tags
+        self.sakuhin_query_table = None
+
+        # build person meta
+        self.person_meta_dict = {}
+        for line in efficient_reading("data/person_name_id_mapping.csv"):
+            arr = line.rstrip().replace('"', '').split(",")
+            self.person_meta_dict[arr[0]] = PersonMeta(person_name=arr[1])
+
+        for line in efficient_reading("data/inverted_sakuhin_cast.csv"):
+            arr = line.rstrip().replace('"', '').split(",")
+            person = self.person_meta_dict.get(arr[0], None)
+            if person:
+                person.add_sid(arr[1].split("|"))
+            else:
+                logging.info("[WRONG] person w/ sid should have person_name first")
+
+        logging.info(f"we have {len(self.person_meta_dict)} person w/ meta")
 
         if os.path.exists('user_profiling_tags'):
             logging.info("previous user_profiling_tags exists, loading Tags...")
@@ -158,12 +245,11 @@ class TagAlt(AutoAltMaker):
             logging.info("no JFET000006 leveldb, building from scratch")
             self.JFET000006 = plyvel.DB('JFET000006/', create_if_missing=True)
 
-
     def make_alt(self, bpr_model_path, user_sid_history_path,
                  already_reco_path='data/already_reco_SIDs.csv', sakuhin_meta_path='data/sakuhin_meta.csv',
                  lookup_table_path="data/sakuhin_lookup_table.csv"):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.build_lookup(lookup_table_path)
+            self.sakuhin_query_table = SIDQueryTable(lookup_table_path)
 
             if not self.tag_index_dict:
                 self.make_tag_index_dict(sakuhin_meta_path)
@@ -205,41 +291,59 @@ class TagAlt(AutoAltMaker):
             for x in [sid_type] + list(sid_genres) + list(sid_nations):
                 tags_cnt[x] = tags_cnt[x] + 1
 
+        # count cast
+        for line in efficient_reading("data/sakuhin_cast.csv"):
+            arr = line.rstrip().replace('"', '').split(",")
+            sids = arr[2].split("|")
+            self.sid_cast_dict[arr[1]] = sids
+            for person_name_id in sids:  # [person_name_id]
+                tags_cnt[person_name_id] = tags_cnt[person_name_id] + 1
+
         # build {tag:index} for vector
         del tags_cnt['""']  # remove empty string
         for index, (tag, cnt) in enumerate(tags_cnt.most_common()):
-            if cnt < 100:  # discard tags whose cnt < 100
+            if cnt < 5:  # discard tags whose cnt < 100 -> for cast cnt should be < 5?
                 break
-            self.tag_index_dict[tag] = index
-
-        logging.info(f"got {len(self.tag_index_dict)} Tags")
+            self.tag_index_dict[self.txt_processing(tag)] = index
         self.leveldb.put('tags'.encode('utf-8'), '|'.join(self.tag_index_dict.keys()).encode('utf-8'))
 
     def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path, already_reco_path):
         tag_index_list = list(self.tag_index_dict.keys())
-        print('tag_index_list = ', tag_index_list)
+        logging.info(f"we got {len(tag_index_list)} Tags")
 
         logging.info("[Phase] - build tag index vector for all SIDs")
+        # read sid cast first
+        if not self.sid_cast_dict:
+            for line in efficient_reading("data/sakuhin_cast.csv"):
+                arr = line.rstrip().replace('"', '').split(",")
+                sids = arr[2].split("|")
+                self.sid_cast_dict[arr[1]] = sids
+
         # build sid_vector for all SIDs
         for line in efficient_reading(sakuhin_meta_path, True):
+            sid = line.split(",")[0]
             v = np.zeros(len(self.tag_index_dict))
             sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
-            for x in [sid_type] + list(sid_genres) + list(sid_nations):
-                tag_index = self.tag_index_dict.get(x, None)
+            sid_cast = self.sid_cast_dict.get(sid, [])
+
+            # label tag indice w/ 1
+            for x in [sid_type] + list(sid_genres) + list(sid_nations) + sid_cast:
+                tag_index = self.tag_index_dict.get(self.txt_processing(x), None)
                 if tag_index:
                     v[tag_index] = 1
-            self.sid_vector[line.split(",")[0]] = v
+            self.sid_vector[sid] = v
 
         self.read_already_reco_sids(already_reco_path)
 
         model = self.load_model(bpr_model_path)
 
         # for bucket categorization
-        for line in efficient_reading(sakuhin_meta_path, True):
-            sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
-            self.type_set.add(sid_type)
-            self.genre_set.update(sid_genres)
-            self.nation_set.update(sid_nations)
+        if not self.type_set or not self.genre_set or not self.nation_set:
+            for line in efficient_reading(sakuhin_meta_path, True):
+                sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
+                self.type_set.add(sid_type)
+                self.genre_set.update(sid_genres)
+                self.nation_set.update(sid_nations)
 
         logging.info("[Phase] - making Tag ALTs, updating levelDB user_profiling_tags & levelDB JFET000006")
         nb_reco_users = 0
@@ -279,54 +383,66 @@ class TagAlt(AutoAltMaker):
                                        self.type_set, self.genre_set, self.nation_set)
 
                 # get personalized SID ranking
-                bpr_sid_list = None
+                ranked_sid_list = None
                 for userid, sid_list, score_list in rank(model, target_users=[userid],
                                                            filter_already_liked_items=True, top_n=-1, batch_size=10000):
-                    bpr_sid_list = sid_list
+                    ranked_sid_list = sid_list
 
-                if not bpr_sid_list:
+                if not ranked_sid_list:
                     logging.debug(f"user:{userid} has no data in the model")
                     continue
 
-                bpr_sid_set = set(bpr_sid_list)
+                ranked_sid_index_dict = {sid:index for index, sid in enumerate(ranked_sid_list)}
 
                 # prevent duplicates
                 # read toppick[:5], trending[:5], popular[:5] as default, then update every Tag ALT
                 already_reco_sids = self.already_reco_dict.get(userid, set())
                 # output_list = [ alt_name1:SIDa|SIDb|SIDc ]
                 output_list = []
-                combo_queries, combo_names = user_profiling.alt_combo_maker()
 
-                for combo_query, combo_name in zip(combo_queries, combo_names): #user_profiling.alt_combo_maker():
-                    sids = self.do_query(combo_query)
-                    sids = self.black_list_filtering(sids)
+                for combo_sid, combo_name in user_profiling.alt_combo_maker(self.person_meta_dict, self.sakuhin_query_table):
+                    sids = self.black_list_filtering(combo_sid)
                     sids = self.rm_series(sids)
-                    # sids = list(sids)
-                    if len(sids) < self.min_nb_reco:
+
+                    #alt_sids = [sids[index] for index in np.argsort([ranked_sid_index_dict.get(sid, 99999) for sid in sids if sid not in already_reco_sids])][:20]
+
+                    if len(sids) > 500:
+                        n = 20
+                        sid_ranking = [ranked_sid_index_dict[sid] for sid in sids if
+                                       sid in ranked_sid_index_dict and sid not in already_reco_sids]
+                        sid_ranking = np.array(sid_ranking)
+                        top_ranking_indice = np.argpartition(sid_ranking, n)[:n]
+                        alt_sids = [sids[i] for i in top_ranking_indice[np.argsort((sid_ranking)[top_ranking_indice])]]
+                    else:
+                        alt_sids = [sids[index] for index in np.argsort(
+                            [ranked_sid_index_dict[sid] for sid in sids if sid in ranked_sid_index_dict and sid not in already_reco_sids])][:20]
+
+                    if len(alt_sids) < self.min_nb_reco:
                         logging.debug(f"{combo_name} got too less SIDs")
                         continue
-                    alt_sids = [sids[index] for index in np.argsort(
-                        [bpr_sid_list.index(sid) for sid in sids if sid in bpr_sid_set and sid not in already_reco_sids])][:20]
+
                     already_reco_sids.update(alt_sids[:5])
 
                     output_list.append(f"{combo_name}={'|'.join(alt_sids[:self.max_nb_reco])}")
 
-                    if len(output_list) == 3:    # TODO 3 only
+                    if len(output_list) == 4:    # TODO
                         break
                 if output_list:
                     self.JFET000006.put(userid.encode('utf-8'), '+'.join(output_list).encode('utf-8'))
 
-                    # TODO: rm
+                    # TODO: dev
                     #for i in range(len(output_list)):
                     #    w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{output_list[i]}\n")
 
                 nb_reco_users += 1
                 if nb_reco_users % 1000 == 1:
                     logging.info(f"{nb_reco_users} users got processed")
+                    # break  # TODO:dev
 
         logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
                                                                                              nb_reco_users / len(self.target_users)))
 
+    """
     def ippan_sakuhin_from_scratch(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path):
         logging.info("Phase 1 - browse all tags to build a vector for all tags >= 100 counts")
         tags_cnt = Counter()
@@ -424,6 +540,10 @@ class TagAlt(AutoAltMaker):
 
         logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
                                                                                              nb_reco_users / len(self.target_users)))
+    """
+
+    def txt_processing(self, txt):
+        return txt.replace("|", "&")  # avoid containing separator '|'
 
     def tags_preprocessing(self, line):
         # sakuhin_public_code,display_name,main_genre_code,menu_names,parent_menu_names,nations
@@ -443,26 +563,6 @@ class TagAlt(AutoAltMaker):
             sid_nations = arr[5].split("/")
 
         return sid_type, sid_genres, set(sid_nations)
-
-    def build_lookup(self, lookup_table_path):
-        self.inverted_index = defaultdict(set)  # {'key': set( SIDs )}
-
-        for line in efficient_reading(lookup_table_path, True):
-            arr = line.rstrip().split(",")
-            SID = arr[0]
-            self.inverted_index[arr[2]].add(SID)  # main_genre_code
-            self.inverted_index[arr[3]].add(SID)  # menu_name
-            self.inverted_index[arr[5]].add(SID)  # nation
-        logging.info("ALT lookup table built")
-
-    def do_query(self, condition):
-        query_sids = set()
-        for key_word in condition:
-            if not query_sids:
-                query_sids = self.inverted_index[key_word]
-            else:
-                query_sids = query_sids & self.inverted_index[key_word]
-        return query_sids  # set of SIDs
 
     def output_from_levelDB(self):
         logging.info("output to JFET000006.csv from levelDB JFET000006")

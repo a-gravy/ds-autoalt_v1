@@ -178,20 +178,19 @@ def demo_get_dim_table():
 
 def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
-    task = "blacklist_sids"  # "unext_sakuhin_meta" "sid_name_dict"
+    task = "user_sid_history"  # "unext_sakuhin_meta" "sid_name_dict"
 
-    in_path = os.path.join("workspace/alt/ippan_sakuhin/gp/blacklist_sids.sql")
+    in_path = os.path.join(f"workspace/alt/ippan_sakuhin/gp/{task}.sql")
     in_sql = get_filepath_content(in_path)
     query = PostgresQuery(dw_conn_string)
-    query.to_csv(in_sql, "data/{}.csv".format(task), True)
+    query.to_csv(in_sql, f"data/{task}.csv", True)
 
 
-def get_sth_cmsdb(v=None):
-    task = "exclusive_ADRAMA"  # f"exclusive_genre"  # workspace/alt/coldstart/execlusive.sql
-    in_sql = get_filepath_content(str(Path(f"workspace/alt/coldstart/cms/{task}.sql")))
-    in_sql = in_sql.format(v)
+def get_sth_cmsdb():
+    task = "person_name_id_mapping"  # f"exclusive_genre"  # workspace/alt/coldstart/execlusive.sql
+    in_sql = get_filepath_content(str(Path(f"workspace/alt/ippan_sakuhin/cmsdb/{task}.sql")))
     query = mysql(cmsdb)
-    query.to_csv(in_sql, "data/{}_{}.csv".format(task, v), True)
+    query.to_csv(in_sql, "data/{}.csv".format(task), True)
 
 
 def get_sth_tidb():
@@ -238,7 +237,7 @@ def main():
     # get_expire_soon()
     get_sth_postegres()
     # get_sth_postegres()
-
+    # get_sth_cmsdb()
 
 if __name__ == '__main__':
     main()
