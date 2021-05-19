@@ -37,6 +37,7 @@ Options:
 
 """
 import os
+import sys
 import logging
 import time
 from datetime import date
@@ -53,6 +54,10 @@ from autoalts.tag_alt import TagAlt
 from autoalts.coldstart import ColdStartExclusive
 from autoalts.utils import make_demo_candidates, toppick_rm_series
 from utils import efficient_reading
+
+PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
+sys.path.append(PROJECT_PATH)
+from autoalts.utils import get_files_from_s3, unzip_files_in_dir
 
 logging.basicConfig(level=logging.INFO)
 
@@ -286,6 +291,14 @@ def check_reco(reco_path, blacklist_path, allow_blackSIDs=False):
         logging.info(f"{reco_path} (w/ {line_counter} lines) passes blacklist and duplicates check, good to go")
 
 
+def check_path_existing(**kwargs):
+    for key, file_path in kwargs.items():
+        if os.path.exists(file_path):
+            pass
+        else:
+            raise Exception(f"[Error] {key}'s {file_path} doesn't exist")
+
+
 def main():
     arguments = docopt(__doc__, version='0.9.0')
     logging.info(arguments)
@@ -296,8 +309,24 @@ def main():
     # read dim_autoalt.csv
     if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments["trending"],
             arguments["popular"], arguments['coldstart'], arguments['tag']]):
+
+        # get dim_autoalt.csv at first
+        get_files_from_s3(domain_name="", **{'':"data/dim_autoalt.csv"})
+        logging.info("Unzipping files")
+        unzip_files_in_dir("data/")
+
         df = pd.read_csv("data/dim_autoalt.csv")
         alt_info = df[df['feature_public_code'] == arguments["<feature_public_code>"]]
+
+        # basic args of creating an autoalt instance allocation
+        basic_kwarg = {
+            "alt_info":alt_info,
+            "create_date":today,
+            "blacklist_path":arguments.get("--blacklist", None),
+            "series_path":arguments["--series"],
+            "max_nb_reco":arguments['--max_nb_reco'],
+            "min_nb_reco":arguments["--min_nb_reco"]
+        }
 
         if len(alt_info) != 1:
             logging.error(f'found {len(alt_info)} alts w/ {arguments["<feature_public_code>"]} in dim_autoalt')
@@ -305,8 +334,8 @@ def main():
         if arguments['top']:
             # python autoalt.py top CFET000001 --input data/daily_top.csv --blacklist data/filter_out_sakuhin_implicit.csv  --max_nb_reco 30
             alt = DailyTop(alt_info, create_date=today, blacklist_path=arguments.get("--blacklist", None),
-                           series_path=arguments["--series"],
-                           max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
+                           series_path=arguments["--series"], max_nb_reco=arguments['--max_nb_reco'],
+                           min_nb_reco=arguments["--min_nb_reco"])
             alt.make_alt(input_path=arguments["--input"])
         elif arguments['toppick']:
             pass
@@ -344,11 +373,28 @@ def main():
             alt.make_alt(popular_sids_path=arguments['--popular'], already_reco_path=arguments['--already_reco'],
                          bpr_model_path=arguments["--model"])
         elif arguments['tag']:
-            # python autoalt.py tag JFET000006 --model data/implicit_bpr.model.2021-03-21 --watched_list data/user_sid_history_daily.csv  --already_reco data/already_reco_SIDs.csv   --blacklist data/filter_out_sakuhin_implicit.csv  --target_users data/superusers.csv  --series data/sid_series.csv
-            alt = TagAlt(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                             series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
-                             max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(bpr_model_path=arguments["--model"], user_sid_history_path=arguments['--watched_list'])  # TODO: add others
+            kwarg = {
+                "target_users_path":arguments.get("--target_users", None),
+                "person_name_id_mapping_path":"data/person_name_id_mapping.csv",
+                "inverted_sakuhin_cast_path":"data/inverted_sakuhin_cast.csv",
+                # below is for alt.make_alt()
+                'bpr_model_path': arguments["--model"],
+                'user_sid_history_path': arguments['--watched_list'],
+                'already_reco_path': 'data/already_reco_SIDs.csv',
+                'sakuhin_meta_path': 'data/sakuhin_meta.csv',
+                'lookup_table_path': "data/sakuhin_lookup_table.csv",
+                "sakuhin_cast_path": "data/sakuhin_cast.csv"
+            }
+            kwarg.update(basic_kwarg)
+
+            # download all files in kwarg from s3 to data/
+            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwarg)
+            # unzip
+            logging.info("Unzipping files")
+            unzip_files_in_dir("data/")
+
+            alt = TagAlt(**kwarg)
+            alt.make_alt(**kwarg)
 
         elif arguments['coldstart']:
             alt = ColdStartExclusive(alt_info, create_date=today)

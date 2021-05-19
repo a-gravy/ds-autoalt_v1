@@ -133,7 +133,7 @@ class AutoAltMaker(object):
         for ndx in range(0, l, n):
             yield iterable[ndx:min(ndx + n, l)]
 
-    def make_alt(self):
+    def make_alt(self, **kwargs):
         raise Exception("Unimplemented Error")
 
     def read_already_reco_sids(self, already_reco_path):

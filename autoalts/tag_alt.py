@@ -196,12 +196,16 @@ class SIDQueryTable:
 
 
 class TagAlt(AutoAltMaker):
-    def __init__(self, alt_info, create_date, target_users_path, blacklist_path, series_path=None, max_nb_reco=20,
-                 min_nb_reco=3):
-        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
+    def __init__(self, **kwargs):
+        # (self, alt_info, create_date, target_users_path, blacklist_path, series_path=None, max_nb_reco=20, min_nb_reco=3):
+        super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
+                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
+
+        self.path_params = {}
+
         self.target_users = None
-        if target_users_path:
-            self.target_users = self.read_target_users(target_users_path)
+        if kwargs["target_users_path"]:
+            self.target_users = self.read_target_users(kwargs["target_users_path"])
 
         # self.types = [s.lower() for s in mapping.types]
 
@@ -214,11 +218,11 @@ class TagAlt(AutoAltMaker):
 
         # build person meta
         self.person_meta_dict = {}
-        for line in efficient_reading("data/person_name_id_mapping.csv"):
+        for line in efficient_reading(kwargs["person_name_id_mapping_path"]):
             arr = line.rstrip().replace('"', '').split(",")
             self.person_meta_dict[arr[0]] = PersonMeta(person_name=arr[1])
 
-        for line in efficient_reading("data/inverted_sakuhin_cast.csv"):
+        for line in efficient_reading(kwargs["inverted_sakuhin_cast_path"]):
             arr = line.rstrip().replace('"', '').split(",")
             person = self.person_meta_dict.get(arr[0], None)
             if person:
@@ -245,17 +249,18 @@ class TagAlt(AutoAltMaker):
             logging.info("no JFET000006 leveldb, building from scratch")
             self.JFET000006 = plyvel.DB('JFET000006/', create_if_missing=True)
 
-    def make_alt(self, bpr_model_path, user_sid_history_path,
-                 already_reco_path='data/already_reco_SIDs.csv', sakuhin_meta_path='data/sakuhin_meta.csv',
-                 lookup_table_path="data/sakuhin_lookup_table.csv"):
+    def make_alt(self, **kwargs):
+        # (self, bpr_model_path, user_sid_history_path, already_reco_path, sakuhin_meta_path, lookup_table_path, sakuhin_cast_path):
+        self.path_params = kwargs
+
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.sakuhin_query_table = SIDQueryTable(lookup_table_path)
+            self.sakuhin_query_table = SIDQueryTable(self.path_params["lookup_table_path"])
 
             if not self.tag_index_dict:
-                self.make_tag_index_dict(sakuhin_meta_path)
+                self.make_tag_index_dict()
 
             # update levelDB JFET000006 & user_profiling_tags
-            self.ippan_sakuhin(bpr_model_path, sakuhin_meta_path, user_sid_history_path, already_reco_path)
+            self.ippan_sakuhin()
 
             # make JFET000006.csv based on levelDB JFET000006
             self.output_from_levelDB()
@@ -269,7 +274,7 @@ class TagAlt(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
-    def make_tag_index_dict(self, sakuhin_meta_path):
+    def make_tag_index_dict(self,):
         """
         go through all tags of all 作品, make index of Tag:
 
@@ -282,7 +287,7 @@ class TagAlt(AutoAltMaker):
         tags_cnt = Counter()
 
         # count all tags
-        for line in efficient_reading(sakuhin_meta_path, True):
+        for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
             sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
             self.type_set.add(sid_type)
             self.genre_set.update(sid_genres)
@@ -292,7 +297,7 @@ class TagAlt(AutoAltMaker):
                 tags_cnt[x] = tags_cnt[x] + 1
 
         # count cast
-        for line in efficient_reading("data/sakuhin_cast.csv"):
+        for line in efficient_reading(self.path_params["sakuhin_cast_path"]):
             arr = line.rstrip().replace('"', '').split(",")
             sids = arr[2].split("|")
             self.sid_cast_dict[arr[1]] = sids
@@ -307,20 +312,20 @@ class TagAlt(AutoAltMaker):
             self.tag_index_dict[self.txt_processing(tag)] = index
         self.leveldb.put('tags'.encode('utf-8'), '|'.join(self.tag_index_dict.keys()).encode('utf-8'))
 
-    def ippan_sakuhin(self, bpr_model_path, sakuhin_meta_path, user_sid_history_path, already_reco_path):
+    def ippan_sakuhin(self,):
         tag_index_list = list(self.tag_index_dict.keys())
         logging.info(f"we got {len(tag_index_list)} Tags")
 
         logging.info("[Phase] - build tag index vector for all SIDs")
         # read sid cast first
         if not self.sid_cast_dict:
-            for line in efficient_reading("data/sakuhin_cast.csv"):
+            for line in efficient_reading(self.path_params["sakuhin_cast_path"]):
                 arr = line.rstrip().replace('"', '').split(",")
                 sids = arr[2].split("|")
                 self.sid_cast_dict[arr[1]] = sids
 
         # build sid_vector for all SIDs
-        for line in efficient_reading(sakuhin_meta_path, True):
+        for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
             sid = line.split(",")[0]
             v = np.zeros(len(self.tag_index_dict))
             sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
@@ -333,13 +338,13 @@ class TagAlt(AutoAltMaker):
                     v[tag_index] = 1
             self.sid_vector[sid] = v
 
-        self.read_already_reco_sids(already_reco_path)
+        self.read_already_reco_sids(self.path_params["already_reco_path"])
 
-        model = self.load_model(bpr_model_path)
+        model = self.load_model(self.path_params["bpr_model_path"])
 
         # for bucket categorization
         if not self.type_set or not self.genre_set or not self.nation_set:
-            for line in efficient_reading(sakuhin_meta_path, True):
+            for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
                 sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
                 self.type_set.add(sid_type)
                 self.genre_set.update(sid_genres)
@@ -350,7 +355,7 @@ class TagAlt(AutoAltMaker):
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
-            for line in efficient_reading(user_sid_history_path, True):
+            for line in efficient_reading(self.path_params["user_sid_history_path"], True):
                 userid = line.split(",")[0]
 
                 if self.target_users and userid not in self.target_users:

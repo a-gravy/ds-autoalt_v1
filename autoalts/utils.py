@@ -16,6 +16,7 @@ import os
 import logging
 import gzip
 import shutil
+import boto3
 from docopt import docopt
 
 
@@ -33,6 +34,37 @@ def file_to_list(filepath, ignore_header=False):
             if item != "":
                 lst.append(item)
     return lst
+
+
+def get_files_from_s3(domain_name, **kwarg):
+    """
+    download all files from s3
+    :param domain_name: e.g. ippan_sakuhin
+    """
+    client = boto3.client('s3')
+
+    for k, v in kwarg.items():
+        if not isinstance(v, str):
+            continue
+
+        if '.model' in v:
+            file_name = os.path.basename(v)
+            print(f"downloading {file_name}")
+            with open(f"data/{file_name}", 'wb') as f:
+                client.download_fileobj("unext-datascience-prod", f"jobs/ippanreco/{file_name}", f)
+        elif v.endswith(".csv"):
+            # data/xxx.csv -> xxx.csv -> xxx.csv.gz
+            # data/yyy.model -> yyy.model
+            file_name = os.path.basename(v)
+            print(f"downloading {file_name}")
+            if file_name in ["dim_autoalt.csv", "superusers.csv", "sid_series.csv"]:
+                with open(f"data/{file_name}.gz", 'wb') as f:
+                    client.download_fileobj("unext-datascience", f"alts/{file_name}.gz", f)
+            else:
+                with open(f"data/{file_name}.gz", 'wb') as f:
+                    client.download_fileobj("unext-datascience", f"alts/{domain_name}/{file_name}.gz", f)
+        else:
+            pass
 
 
 def unzip_files_in_dir(dir_path):

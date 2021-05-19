@@ -11,6 +11,7 @@ from pathlib import Path
 from dstools.utils import get_filepath_content, send_file_to_dest
 from dstools.connectors.postgres import Query as PostgresQuery
 from dstools.connectors.mysql import Query as mysql
+from dstools.connectors.mysql import Query as MysqlQuery
 from dstools.connectors.s3 import S3
 
 dw_conn_string = "postgres://reco_etl:recoreco@10.232.201.241:5432/unext_analytics_dw?charset=utf8"
@@ -192,6 +193,20 @@ def get_sth_cmsdb():
     query = mysql(cmsdb)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)
 
+workspace_root = "workspace"
+def get_sth_mysql(**kwargs):
+    in_path = str(Path(workspace_root, kwargs['sql']))
+    in_sql = get_filepath_content(in_path)
+
+    query = MysqlQuery(cmsdb)
+
+    # _, tmp_file_path = tempfile.mkstemp(dir="/data")
+    tmp_file_path = "tmp"
+    query.to_csv(in_sql, tmp_file_path, with_header=True)
+    S3.upload_file(tmp_file_path, f"{kwargs['s3_dir']}{kwargs['csv']}",
+                   zipped=True, delete_source_file=True)
+
+
 
 def get_sth_tidb():
     #tidb_conn_string = 'mysql://reco:reco@10.232.201.18:3306/searchenginedb?charset=utf8'  # version 3
@@ -235,9 +250,16 @@ def get_sth_presto():
 
 def main():
     # get_expire_soon()
-    get_sth_postegres()
+    # get_sth_postegres()
     # get_sth_postegres()
     # get_sth_cmsdb()
+    kwargs={
+        "s3_dir": "s3://unext-datascience/alts/ippan_sakuhin/",
+        'sql': "alt/ippan_sakuhin/cmsdb/person_name_id_mapping.sql",
+        'csv': "person_name_id_mapping.csv"
+    }
+    get_sth_mysql(**kwargs)
+
 
 if __name__ == '__main__':
     main()
