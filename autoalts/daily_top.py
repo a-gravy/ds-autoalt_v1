@@ -7,18 +7,19 @@ logging.basicConfig(level=logging.INFO)
 
 
 class DailyTop(AutoAltMaker):
-    def __init__(self, alt_info, create_date, blacklist_path, series_path=None, max_nb_reco=10, min_nb_reco=2):
-        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
+    def __init__(self, **kwargs):
+        super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
+                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
 
-    def make_alt(self, input_path):
+    def make_alt(self, **kwarg):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             if "SFET" in self.alt_info['feature_public_code'].values[0]:  # TODO: tmp place for coldstart
-                self.video_domain(input_path)
+                self.video_domain(kwarg["input_path"])
             else:
                 # self.video_domain_genre(input_path)
-                self.video_domain(input_path)
+                self.video_domain(kwarg["input_path"])
         elif self.alt_info['domain'].values[0] == "semiadult":
-            self.semi_adult(input_path)
+            self.semi_adult(kwarg["input_path"])
         elif self.alt_info['domain'].values[0] == "adult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -124,7 +125,6 @@ class DailyTop(AutoAltMaker):
         reco_str = '|'.join(sid_list[:self.max_nb_reco])
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
-            # TODO: user_multi_account_id
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"
                     f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
                     f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")

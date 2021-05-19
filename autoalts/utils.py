@@ -16,11 +16,14 @@ import os
 import logging
 import gzip
 import shutil
+import yaml
 import boto3
 from docopt import docopt
 
-
 logging.basicConfig(level=logging.INFO)
+
+with open("config.yaml") as f:
+    config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 
 def file_to_list(filepath, ignore_header=False):
@@ -36,6 +39,16 @@ def file_to_list(filepath, ignore_header=False):
     return lst
 
 
+def split_s3_path(text):
+    """
+    split s3://unext-datascience-prod/jobs/ippanreco/
+    return unext-datascience-prod(as bucket), jobs/ippanreco(as key)
+    """
+    arr = text.split("/")
+    arr = [x for x in arr if x]
+    return arr[1], '/'.join(arr[2:])
+
+
 def get_files_from_s3(domain_name, **kwarg):
     """
     download all files from s3
@@ -47,22 +60,41 @@ def get_files_from_s3(domain_name, **kwarg):
         if not isinstance(v, str):
             continue
 
-        if '.model' in v:
-            file_name = os.path.basename(v)
-            print(f"downloading {file_name}")
+        # data/xxx.csv -> xxx.csv -> xxx.csv.gz
+        # data/yyy.model -> yyy.model
+        file_name = os.path.basename(v)
+
+        if '.model' in v:  # file name w/ DATE
+            s3_dir_path = config['s3_dir']['ippan_bpr_root']
+            bucket, key = split_s3_path(s3_dir_path)
+            print(f"downloading {bucket} {key}/{file_name}")
+
             with open(f"data/{file_name}", 'wb') as f:
-                client.download_fileobj("unext-datascience-prod", f"jobs/ippanreco/{file_name}", f)
+                client.download_fileobj(bucket, f"{key}/{file_name}", f)
+                # client.download_fileobj("unext-datascience-prod", f"jobs/ippanreco/{file_name}", f)
+        elif 'postplay_implicit' in v:
+            s3_dir_path = config['s3_dir']['ippan_bpr_root']
+            bucket, key = split_s3_path(s3_dir_path)
+
+            file_name = f'{file_name}.gz'  # the file in s3 is zipped
+            print(f"downloading {bucket} {key}/{file_name}")
+
+            with open(f"data/{file_name}", 'wb') as f:
+                client.download_fileobj(bucket, f"{key}/{file_name}", f)
         elif v.endswith(".csv"):
-            # data/xxx.csv -> xxx.csv -> xxx.csv.gz
-            # data/yyy.model -> yyy.model
-            file_name = os.path.basename(v)
-            print(f"downloading {file_name}")
-            if file_name in ["dim_autoalt.csv", "superusers.csv", "sid_series.csv"]:
-                with open(f"data/{file_name}.gz", 'wb') as f:
-                    client.download_fileobj("unext-datascience", f"alts/{file_name}.gz", f)
+            s3_dir_path = config['s3_dir'].get(file_name, None)
+            if s3_dir_path:
+                # s3_dir_path = config[s3_dir]
+                bucket, key = split_s3_path(s3_dir_path)
             else:
-                with open(f"data/{file_name}.gz", 'wb') as f:
-                    client.download_fileobj("unext-datascience", f"alts/{domain_name}/{file_name}.gz", f)
+                s3_dir_path = config['s3_dir'][domain_name]
+                bucket, key = split_s3_path(s3_dir_path)
+
+            file_name = f'{file_name}.gz'  # the file in s3 is zipped
+            print(f"downloading {bucket} {key}/{file_name}")
+
+            with open(f"data/{file_name}", 'wb') as f:
+                client.download_fileobj(bucket, f"{key}/{file_name}", f)
         else:
             pass
 
@@ -81,6 +113,7 @@ def unzip_files_in_dir(dir_path):
                 name_without_gz = os.path.splitext(file)[0]
                 with open(os.path.join(dir_path, name_without_gz), 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
+            os.remove(os.path.join(dir_path, file))
         else:
             logging.info(f"skip {file}")
 

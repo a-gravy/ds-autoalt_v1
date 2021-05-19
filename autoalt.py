@@ -2,7 +2,7 @@
 
 Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py trending <feature_public_code> --model=PATH --trending=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py popular <feature_public_code> --model=PATH --popular=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
@@ -306,11 +306,10 @@ def main():
     start_time = time.time()
     today = date.today().strftime("%Y%m%d")  # e.g. 20200915
 
-    # read dim_autoalt.csv
     if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments["trending"],
             arguments["popular"], arguments['coldstart'], arguments['tag']]):
 
-        # get dim_autoalt.csv at first
+        # at first, read dim_autoalt.csv
         get_files_from_s3(domain_name="", **{'':"data/dim_autoalt.csv"})
         logging.info("Unzipping files")
         unzip_files_in_dir("data/")
@@ -329,14 +328,23 @@ def main():
         }
 
         if len(alt_info) != 1:
-            logging.error(f'found {len(alt_info)} alts w/ {arguments["<feature_public_code>"]} in dim_autoalt')
+            logging.error(f'can not find {len(alt_info)} alts w/ {arguments["<feature_public_code>"]} in dim_autoalt')
             return
         if arguments['top']:
-            # python autoalt.py top CFET000001 --input data/daily_top.csv --blacklist data/filter_out_sakuhin_implicit.csv  --max_nb_reco 30
-            alt = DailyTop(alt_info, create_date=today, blacklist_path=arguments.get("--blacklist", None),
-                           series_path=arguments["--series"], max_nb_reco=arguments['--max_nb_reco'],
-                           min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(input_path=arguments["--input"])
+            # python autoalt.py top CFET000001 --input data/daily_top.csv --blacklist data/blacklist_sids.csv  --max_nb_reco 10
+            kwargs = {
+                'input_path': arguments["--input"],
+            }
+            kwargs.update(basic_kwarg)
+
+            # download all files in kwarg from s3 to data/
+            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+            # unzip
+            logging.info("Unzipping files")
+            unzip_files_in_dir("data/")
+
+            alt = DailyTop(**kwargs)
+            alt.make_alt(**kwargs)
         elif arguments['toppick']:
             pass
             """
@@ -347,18 +355,48 @@ def main():
                          target_items_path=arguments['--target_items'])
             """
         elif arguments["new_arrival"]:
-            # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/filter_out_sakuhin_implicit.csv --series data/sid_series.csv
-            alt = NewArrival(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                             series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
-                             max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(input_path=arguments['--input'], bpr_model_path=arguments["--model"])
+            # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/blacklist_sids.csv --series data/sid_series.csv
+            ######
+            kwargs = {
+                'target_users_path': arguments.get('--target_users', None),
+                # below are for alt.make_alt()
+                'input_path': arguments["--input"],
+                'bpr_model_path':arguments['--model'],
+                'new_arrival_EP_path':"data/new_arrival_EP.csv",
+                'user_ep_history_path':"data/user_ep_history.csv",
+            }
+            kwargs.update(basic_kwarg)
+
+            # download all files in kwarg from s3 to data/
+            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+            # unzip
+            logging.info("Unzipping files")
+            unzip_files_in_dir("data/")
+
+            alt = NewArrival(**kwargs)
+            alt.make_alt(**kwargs)
         elif arguments["byw"]:
-            # python autoalt.py  byw JFET000002 --blacklist data/filter_out_sakuhin_implicit.csv  --watched_list data/watched_list_ippan.csv --series data/sid_series.csv
-            alt = BecauseYouWatched(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                                    series_path=arguments["--series"], sid_name_path=arguments["--sid_name"],
-                                    target_users_path=arguments.get("--target_users", None),
-                                    max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(arguments["--watched_list"])
+            # TODO: cmd in airflow prod
+            # python autoalt.py  byw JFET000002 --sid_name data/sid_name_dict.csv --blacklist data/blacklist_sids.csv  --watched_list data/user_sid_history.csv  --postplay data/postplay_implicit.2021-05-17.csv  --series data/sid_series.csv --target_users data/superusers.csv
+            kwargs = {
+                'target_users_path': arguments.get('--target_users', None),
+                'sid_name_path':arguments["--sid_name"],
+                # below are for alt.make_alt()
+                'watched_list_path':arguments["--watched_list"],
+                'cbf_rs_list_path':"data/cbf_rs_list.csv",
+                'postplay_path':arguments["--postplay"],
+            }
+            kwargs.update(basic_kwarg)
+
+            # download all files in kwarg from s3 to data/
+            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+            # unzip
+            logging.info("Unzipping files")
+            unzip_files_in_dir("data/")
+
+            alt = BecauseYouWatched(**kwargs)
+            alt.make_alt(**kwargs)
+
         elif arguments["trending"]:
             # python autoalt.py trending JFET000005 --model data/implicit_bpr.model.2021-03-21 --trending data/trending.csv --toppick data/toppick.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv --series data/sid_series.csv
             alt = Trending(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
@@ -373,11 +411,11 @@ def main():
             alt.make_alt(popular_sids_path=arguments['--popular'], already_reco_path=arguments['--already_reco'],
                          bpr_model_path=arguments["--model"])
         elif arguments['tag']:
-            kwarg = {
+            kwargs = {
                 "target_users_path":arguments.get("--target_users", None),
                 "person_name_id_mapping_path":"data/person_name_id_mapping.csv",
                 "inverted_sakuhin_cast_path":"data/inverted_sakuhin_cast.csv",
-                # below is for alt.make_alt()
+                # below are for alt.make_alt()
                 'bpr_model_path': arguments["--model"],
                 'user_sid_history_path': arguments['--watched_list'],
                 'already_reco_path': 'data/already_reco_SIDs.csv',
@@ -385,16 +423,16 @@ def main():
                 'lookup_table_path': "data/sakuhin_lookup_table.csv",
                 "sakuhin_cast_path": "data/sakuhin_cast.csv"
             }
-            kwarg.update(basic_kwarg)
+            kwargs.update(basic_kwarg)
 
             # download all files in kwarg from s3 to data/
-            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwarg)
+            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
             # unzip
             logging.info("Unzipping files")
             unzip_files_in_dir("data/")
 
-            alt = TagAlt(**kwarg)
-            alt.make_alt(**kwarg)
+            alt = TagAlt(**kwargs)
+            alt.make_alt(**kwargs)
 
         elif arguments['coldstart']:
             alt = ColdStartExclusive(alt_info, create_date=today)

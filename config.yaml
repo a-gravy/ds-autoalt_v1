@@ -4,3 +4,17 @@ header:
 
 feature_public_start_datetime: 2020-01-01 00:00:00
 feature_public_end_datetime: 2029-12-31 23:59:59
+
+s3_dir:
+  #####
+  alt_root: s3://unext-datascience/alts/
+  ippan_sakuhin: s3://unext-datascience/alts/ippan_sakuhin/
+  semiadult: s3://unext-datascience/alts/semiadult/
+  ippan_bpr_root: s3://unext-datascience-prod/jobs/ippanreco/
+  #####
+  dim_autoalt.csv: s3://unext-datascience/alts/
+  superusers.csv: s3://unext-datascience/alts/
+  sid_series.csv: s3://unext-datascience/alts/
+  sid_name_dict.csv: s3://unext-datascience/alts/
+  postplay_implicit.csv: s3://unext-datascience-prod/jobs/ippanreco/
+  cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
