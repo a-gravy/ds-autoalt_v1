@@ -83,10 +83,9 @@ def get_files_from_s3(domain_name, **kwarg):
                 client.download_fileobj(bucket, f"{key}/{file_name}", f)
         elif v.endswith(".csv"):
             s3_dir_path = config['s3_dir'].get(file_name, None)
-            if s3_dir_path:
-                # s3_dir_path = config[s3_dir]
+            if s3_dir_path:  # special s3 path
                 bucket, key = split_s3_path(s3_dir_path)
-            else:
+            else:   # others = domain bucket
                 s3_dir_path = config['s3_dir'][domain_name]
                 bucket, key = split_s3_path(s3_dir_path)
 

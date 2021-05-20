@@ -330,21 +330,18 @@ def main():
         if len(alt_info) != 1:
             logging.error(f'can not find {len(alt_info)} alts w/ {arguments["<feature_public_code>"]} in dim_autoalt')
             return
+
+        alt_func = None
+        kwargs = None
+
         if arguments['top']:
             # python autoalt.py top CFET000001 --input data/daily_top.csv --blacklist data/blacklist_sids.csv  --max_nb_reco 10
             kwargs = {
                 'input_path': arguments["--input"],
             }
             kwargs.update(basic_kwarg)
+            alt_func = DailyTop
 
-            # download all files in kwarg from s3 to data/
-            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
-            # unzip
-            logging.info("Unzipping files")
-            unzip_files_in_dir("data/")
-
-            alt = DailyTop(**kwargs)
-            alt.make_alt(**kwargs)
         elif arguments['toppick']:
             pass
             """
@@ -356,7 +353,6 @@ def main():
             """
         elif arguments["new_arrival"]:
             # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/blacklist_sids.csv --series data/sid_series.csv
-            ######
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
@@ -366,17 +362,9 @@ def main():
                 'user_ep_history_path':"data/user_ep_history.csv",
             }
             kwargs.update(basic_kwarg)
+            alt_func = NewArrival
 
-            # download all files in kwarg from s3 to data/
-            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
-            # unzip
-            logging.info("Unzipping files")
-            unzip_files_in_dir("data/")
-
-            alt = NewArrival(**kwargs)
-            alt.make_alt(**kwargs)
         elif arguments["byw"]:
-            # TODO: cmd in airflow prod
             # python autoalt.py  byw JFET000002 --sid_name data/sid_name_dict.csv --blacklist data/blacklist_sids.csv  --watched_list data/user_sid_history.csv  --postplay data/postplay_implicit.2021-05-17.csv  --series data/sid_series.csv --target_users data/superusers.csv
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
@@ -387,29 +375,31 @@ def main():
                 'postplay_path':arguments["--postplay"],
             }
             kwargs.update(basic_kwarg)
-
-            # download all files in kwarg from s3 to data/
-            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
-            # unzip
-            logging.info("Unzipping files")
-            unzip_files_in_dir("data/")
-
-            alt = BecauseYouWatched(**kwargs)
-            alt.make_alt(**kwargs)
+            alt_func = BecauseYouWatched
 
         elif arguments["trending"]:
-            # python autoalt.py trending JFET000005 --model data/implicit_bpr.model.2021-03-21 --trending data/trending.csv --toppick data/toppick.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv --series data/sid_series.csv
-            alt = Trending(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                             series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
-                             max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(trending_path=arguments['--trending'], toppick_path=arguments['--toppick'], bpr_model_path=arguments["--model"])
+            kwargs = {
+                'target_users_path': arguments.get('--target_users', None),
+                # below are for alt.make_alt()
+                'trending_path': arguments["--trending"],
+                'toppick_path': arguments["--toppick"],
+                'bpr_model_path': arguments["--model"],
+            }
+            kwargs.update(basic_kwarg)
+            alt_func = Trending
+
         elif arguments["popular"]:
-            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --popular data/popular.csv --already_reco data/already_reco_SIDs.csv --blacklist data/filter_out_sakuhin_implicit.csv --target_users data/superusers.csv --series data/sid_series.csv
-            alt = Popular(alt_info, create_date=today, blacklist_path=arguments["--blacklist"],
-                             series_path=arguments["--series"], target_users_path=arguments.get("--target_users", None),
-                             max_nb_reco=arguments['--max_nb_reco'], min_nb_reco=arguments["--min_nb_reco"])
-            alt.make_alt(popular_sids_path=arguments['--popular'], already_reco_path=arguments['--already_reco'],
-                         bpr_model_path=arguments["--model"])
+            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --popular data/popular.csv --already_reco data/already_reco_SIDs.csv --blacklist data/blacklist_sids.csv --target_users data/superusers.csv --series data/sid_series.csv
+            kwargs = {
+                'target_users_path': arguments.get('--target_users', None),
+                # below are for alt.make_alt()
+                'popular_sids_path': arguments["--popular"],
+                'already_reco_path': arguments["--already_reco"],
+                'bpr_model_path': arguments["--model"],
+            }
+            kwargs.update(basic_kwarg)
+            alt_func = Popular
+
         elif arguments['tag']:
             kwargs = {
                 "target_users_path":arguments.get("--target_users", None),
@@ -424,23 +414,22 @@ def main():
                 "sakuhin_cast_path": "data/sakuhin_cast.csv"
             }
             kwargs.update(basic_kwarg)
-
-            # download all files in kwarg from s3 to data/
-            get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
-            # unzip
-            logging.info("Unzipping files")
-            unzip_files_in_dir("data/")
-
-            alt = TagAlt(**kwargs)
-            alt.make_alt(**kwargs)
+            alt_func = TagAlt
 
         elif arguments['coldstart']:
             alt = ColdStartExclusive(alt_info, create_date=today)
             alt.make_alt(input=arguments["--input"])
-        elif arguments['genre_row']:
-            raise Exception("genre_row is invalid using current bad TAGs :(")
         else:
             raise Exception("Unimplemented ALT")
+
+        # download all files in kwarg from s3 to folder data/
+        get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+        # unzip
+        logging.info("Unzipping files")
+        unzip_files_in_dir("data/")
+
+        alt = alt_func(**kwargs)
+        alt.make_alt(**kwargs)
 
     elif arguments['allocate_FETs']:
         allocate_fets_to_fet_table(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))

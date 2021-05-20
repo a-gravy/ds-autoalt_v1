@@ -142,7 +142,7 @@ class UserProfling():
         elif combo == "genre":
             return f"{kwargs['genre']}のおすすめ"
         elif combo == "person":
-            return f"{kwargs['person']}の作品のおすすめ"
+            return f"{kwargs['person']}のおすすめ"
         else:
             raise Exception(f"WRONG COMBO {combo}")
 

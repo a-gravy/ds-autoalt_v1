@@ -250,15 +250,17 @@ def get_sth_presto():
 
 def main():
     # get_expire_soon()
-    # get_sth_postegres()
-    # get_sth_postegres()
+    get_sth_postegres()
     # get_sth_cmsdb()
+
+    """
     kwargs={
         "s3_dir": "s3://unext-datascience/alts/ippan_sakuhin/",
         'sql': "alt/ippan_sakuhin/cmsdb/person_name_id_mapping.sql",
         'csv': "person_name_id_mapping.csv"
     }
     get_sth_mysql(**kwargs)
+    """
 
 
 if __name__ == '__main__':

@@ -8,16 +8,17 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Popular(AutoAltMaker):
-    def __init__(self, alt_info, create_date, target_users_path, blacklist_path, series_path=None, max_nb_reco=20, min_nb_reco=3):
-        super().__init__(alt_info, create_date, blacklist_path, series_path, max_nb_reco, min_nb_reco)
+    def __init__(self,**kwargs):
+        super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
+                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
         self.target_users = None
-        if target_users_path:
-            self.target_users = self.read_target_users(target_users_path)
+        if kwargs['target_users_path']:
+            self.target_users = self.read_target_users(kwargs['target_users_path'])
 
-    def make_alt(self, popular_sids_path, already_reco_path, bpr_model_path):
-        logging.info(f"making {self.alt_info} using model:{bpr_model_path}")
+    def make_alt(self, **kwargs):
+        logging.info(f"making {self.alt_info} using model:{kwargs['bpr_model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(popular_sids_path, already_reco_path, bpr_model_path)
+            self.ippan_sakuhin(kwargs['popular_sids_path'], kwargs['already_reco_path'], kwargs['bpr_model_path'])
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":

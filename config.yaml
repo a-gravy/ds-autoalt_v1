@@ -18,3 +18,4 @@ s3_dir:
   sid_name_dict.csv: s3://unext-datascience/alts/
   postplay_implicit.csv: s3://unext-datascience-prod/jobs/ippanreco/
   cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
+  toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/
