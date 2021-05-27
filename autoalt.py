@@ -22,8 +22,8 @@ Options:
     --output PATH         File or dir path of output
     --model PATH          File path location of the trained model
     --top_n=<tn>          Number of recommended items. [default: 10]
-    --max_nb_reco=<nbr>   Maximal number of items in one ALT [default: 30]
-    --min_nb_reco=<tn>    Minimal number of items in one ALT [default: 3]
+    --max_nb_reco=<nbr>   Maximal number of items in one ALT [default: 20]
+    --min_nb_reco=<tn>    Minimal number of items in one ALT [default: 4]
     --nb_alt=<nbgr>       how many alts made for each user  [default: 3]
     feature_public_code   detail@dim_autoalt
     ALT_domain            SOUGOU, movie, book, manga, music … etc. SOUGOU means mixing all ALT_domain types together
@@ -403,8 +403,7 @@ def main():
         elif arguments['tag']:
             kwargs = {
                 "target_users_path":arguments.get("--target_users", None),
-                "person_name_id_mapping_path":"data/person_name_id_mapping.csv",
-                "inverted_sakuhin_cast_path":"data/inverted_sakuhin_cast.csv",
+                "cast_info_path":"data/cast_info.csv",
                 # below are for alt.make_alt()
                 'bpr_model_path': arguments["--model"],
                 'user_sid_history_path': arguments['--watched_list'],

@@ -1,6 +1,6 @@
 # 0.9.8 trending
 # 0.9.9 Tag
-VERSION ?= 1.0.3
+VERSION ?= 1.0.4
 NAME ?= altmaker
 
 REPOSITORY ?= harbor.unext.jp/datascience-dev

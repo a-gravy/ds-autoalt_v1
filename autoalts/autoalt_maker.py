@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class AutoAltMaker(object):
-    def __init__(self, alt_info, create_date, blacklist_path=None, series_path=None, max_nb_reco=30, min_nb_reco=3):
+    def __init__(self, alt_info, create_date, blacklist_path=None, series_path=None, max_nb_reco=20, min_nb_reco=4):
         self.alt_info = alt_info
         self.create_date = create_date
         self.max_nb_reco = int(max_nb_reco)

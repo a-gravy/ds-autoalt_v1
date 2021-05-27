@@ -16,6 +16,17 @@ s3_dir:
   superusers.csv: s3://unext-datascience/alts/
   sid_series.csv: s3://unext-datascience/alts/
   sid_name_dict.csv: s3://unext-datascience/alts/
+  pfid_0_users.csv: s3://unext-datascience/alts/
+  pfid_1_users.csv: s3://unext-datascience/alts/
+  pfid_2_users.csv: s3://unext-datascience/alts/
+  pfid_3_users.csv: s3://unext-datascience/alts/
+  pfid_4_users.csv: s3://unext-datascience/alts/
+  pfid_5_users.csv: s3://unext-datascience/alts/
+  pfid_6_users.csv: s3://unext-datascience/alts/
+  pfid_7_users.csv: s3://unext-datascience/alts/
+  pfid_8_users.csv: s3://unext-datascience/alts/
+  pfid_9_users.csv: s3://unext-datascience/alts/
+
   postplay_implicit.csv: s3://unext-datascience-prod/jobs/ippanreco/
   cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
   toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/

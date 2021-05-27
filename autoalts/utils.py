@@ -4,6 +4,7 @@ utils
 Usage:
     utils.py unzip_dir --input=PATH
     utils.py demo_candidates --input=PATH
+    utils.py pfid_div --input=PATH
 
 Options:
     -h --help Show this screen
@@ -24,6 +25,57 @@ logging.basicConfig(level=logging.INFO)
 
 with open("config.yaml") as f:
     config = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+
+def efficient_reading(input_path, with_header=True, header_format=None):
+    """
+    yield one line at once til go through entire file,
+
+    & check the header_format
+    """
+    with open(input_path, 'r') as r:
+        if with_header:
+            header = r.readline().rstrip()
+            logging.debug(f"reading file whose format is  {header}")
+            if header_format:
+                assert header == header_format, f"Header Format is WRONG"
+        while True:
+            line = r.readline()
+            if line:
+                yield line
+            else:
+                break
+
+
+def pfid_divider(input_path="data/user_pfid.csv", superusers_path="data/superusers.csv"):
+    """
+    read  pfid_matsubi,user_platform_id,user_multi_account_id
+
+    divide users into 10 groups by the end nb of pfid
+    * append superusers at front
+    * output as pfid_{i}_users.csv
+
+    :param input_path:
+    :return:
+    """
+    pfid_writters = []
+    for i in range(10):
+        writer = open(f'pfid_{i}_users.csv', 'w')
+        writer.write("user_multi_account_id\n")
+        pfid_writters.append(writer)
+
+    for line in efficient_reading(superusers_path):  # write superusers also
+        for i in range(10):
+            pfid_writters[i].write(line)
+
+    for line in efficient_reading(input_path):
+        arr = line.rstrip().split(',')
+        pfid_writters[int(arr[0])].write(f"{arr[2]}\n")
+
+    for i in range(10):
+        pfid_writters[i].close()
+
+    logging.info("output files = ", os.listdir("."))
 
 
 def file_to_list(filepath, ignore_header=False):
@@ -62,6 +114,10 @@ def get_files_from_s3(domain_name, **kwarg):
 
         # data/xxx.csv -> xxx.csv -> xxx.csv.gz
         # data/yyy.model -> yyy.model
+        if os.path.exists(v):
+            print(f"{v} exists")
+            continue
+
         file_name = os.path.basename(v)
 
         if '.model' in v:  # file name w/ DATE
@@ -222,6 +278,8 @@ def main():
     # read dim_autoalt.csv
     if arguments['unzip_dir']:
         unzip_files_in_dir(arguments['--input'])
+    elif arguments['pfid_div']:
+        pfid_divider(arguments['--input'])
     else:
         raise Exception("Unimplemented ERROR")
 

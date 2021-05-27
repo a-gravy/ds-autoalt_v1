@@ -179,7 +179,7 @@ def demo_get_dim_table():
 
 def get_sth_postegres():
     # chose the _.sql in workspace/alt/personalized/
-    task = "user_sid_history"  # "unext_sakuhin_meta" "sid_name_dict"
+    task = "cast_info"  # "unext_sakuhin_meta" "sid_name_dict"
 
     in_path = os.path.join(f"workspace/alt/ippan_sakuhin/gp/{task}.sql")
     in_sql = get_filepath_content(in_path)

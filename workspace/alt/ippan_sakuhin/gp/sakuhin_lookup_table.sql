@@ -47,10 +47,9 @@ right join (
     distinct sakuhin_public_code,
     display_production_country
   from dim_product
-  where sale_end_datetime >= now()
+  where sale_end_datetime >= now()  -- filter out unavailable sakuhins, so that reco won't have them
   and sale_start_datetime < now()
   ) current_sakuhin using(sakuhin_public_code)
 inner join dim_sakuhin dm using(sakuhin_public_code)
 -- group by dm.sakuhin_public_code, dm.display_name, dm.main_genre_code, nations
---where sakuhin_public_code = 'SID0002167'
 order by sakuhin_public_code asc
