@@ -155,7 +155,7 @@ class UserProfling():
         elif combo == "genre":
             return f"{kwargs['genre']}のおすすめ"
         elif combo == "person":
-            return f"{kwargs['person']}のおすすめ"
+            return f"「{kwargs['person']}」のピックアップ作品"
         else:
             raise Exception(f"WRONG COMBO {combo}")
 
@@ -335,7 +335,7 @@ class TagAlt(AutoAltMaker):
         elif combo == "genre":
             return f"{kwargs['genre']}のおすすめ"
         elif combo == "person":
-            return f"{kwargs['person']}のおすすめ"
+            return f"「{kwargs['person']}」のピックアップ作品"
         else:
             raise Exception(f"WRONG COMBO {combo}")
 
@@ -662,144 +662,7 @@ class TagAlt(AutoAltMaker):
 
         logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
                                                                                              nb_reco_users / len(self.target_users)))
-    """
-    def ippan_sakuhin(self,):
-        tag_index_list = list(self.tag_index_dict.keys())
-        logging.info(f"we got {len(tag_index_list)} Tags")
 
-        logging.info("[Phase] - build tag index vector for all SIDs")
-        # read sid cast first
-
-        if not self.sid_cast_dict:
-            for line in efficient_reading(self.path_params["sakuhin_cast_path"]):
-                arr = line.rstrip().replace('"', '').split(",")
-                sids = arr[2].split("|")
-                self.sid_cast_dict[arr[1]] = sids
-
-        # build sid_vector for all SIDs
-        for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
-            sid = line.split(",")[0]
-            v = np.zeros(len(self.tag_index_dict))
-            sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
-            sid_cast = self.sid_cast_dict.get(sid, [])
-
-            # label tag indice w/ 1
-            for x in [sid_type] + list(sid_genres) + list(sid_nations) + sid_cast:
-                tag_index = self.tag_index_dict.get(self.txt_processing(x), None)
-                if tag_index:
-                    v[tag_index] = 1
-            self.sid_vector[sid] = v
-
-        self.read_already_reco_sids(self.path_params["already_reco_path"])
-
-        model = self.load_model(self.path_params["bpr_model_path"])
-
-        # for bucket categorization
-        if not self.type_set or not self.genre_set or not self.nation_set:
-            for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
-                sid_type, sid_genres, sid_nations = self.tags_preprocessing(line)
-                self.type_set.add(sid_type)
-                self.genre_set.update(sid_genres)
-                self.nation_set.update(sid_nations)
-
-        logging.info("[Phase] - making Tag ALTs, updating levelDB user_profiling_tags & levelDB JFET000006")
-        nb_reco_users = 0
-
-        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['feature_table'])
-            for line in efficient_reading(self.path_params["user_sid_history_path"], True):
-                userid = line.split(",")[0]
-
-                if self.target_users and userid not in self.target_users:
-                    continue
-
-                # read previous user_profiling_vector from leveldb
-                user_profiling_vector = self.leveldb.get(userid.encode('utf-8'), b'').decode("utf-8")
-                if user_profiling_vector:
-                    # string -> np.array
-                    user_profiling_vector = np.array(user_profiling_vector.split('|'), dtype=float)
-                else:
-                    user_profiling_vector = np.zeros(len(self.tag_index_dict))
-
-                # build user vector based on history (from old -> new)
-                for sid in line.rstrip().split(",")[1].split("|")[::-1]:
-                    sid_vector = self.sid_vector.get(sid, [])
-                    if sid_vector != []:
-                        user_profiling_vector = user_profiling_vector * 0.9 + sid_vector
-
-                # update leveldb: np.array -> string
-                self.leveldb.put(userid.encode('utf-8'),
-                       '|'.join(['{:.3f}'.format(x) for x in user_profiling_vector]).encode('utf-8'))
-
-                # build Tag combo based on user profile
-                user_profiling = UserProfling(userid)
-                for index_tag in (np.argsort(-user_profiling_vector))[:20]:
-                    if user_profiling_vector[index_tag] < 0.01:
-                        break
-                    user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag],
-                                       self.type_set, self.genre_set, self.nation_set)
-
-                # get personalized SID ranking
-                ranked_sid_list = None
-                for userid, sid_list, score_list in rank(model, target_users=[userid],
-                                                           filter_already_liked_items=True, top_n=-1, batch_size=10000):
-                    ranked_sid_list = sid_list
-
-                if not ranked_sid_list:
-                    logging.debug(f"user:{userid} has no data in the model")
-                    continue
-
-                ranked_sid_index_dict = {sid:index for index, sid in enumerate(ranked_sid_list)}
-
-                # prevent duplicates
-                # read toppick[:5], trending[:5], popular[:5] as default, then update every Tag ALT
-                already_reco_sids = self.already_reco_dict.get(userid, set())
-                # output_list = [ alt_name1:SIDa|SIDb|SIDc ]
-                output_list = []
-
-                for combo_sid, combo_name in user_profiling.alt_combo_maker(self.person_meta_dict, self.sakuhin_query_table):
-                    # sids = self.black_list_filtering(combo_sid)
-                    # sids = self.rm_series(sids)
-                    sids = combo_sid
-
-                    #alt_sids = [sids[index] for index in np.argsort([ranked_sid_index_dict.get(sid, 99999) for sid in sids if sid not in already_reco_sids])][:20]
-
-                    if len(sids) > 500:
-                        n = 20
-                        sid_ranking = [ranked_sid_index_dict[sid] for sid in sids if
-                                       sid in ranked_sid_index_dict and sid not in already_reco_sids]
-                        sid_ranking = np.array(sid_ranking)
-                        top_ranking_indice = np.argpartition(sid_ranking, n)[:n]
-                        alt_sids = [sids[i] for i in top_ranking_indice[np.argsort((sid_ranking)[top_ranking_indice])]]
-                    else:
-                        alt_sids = [sids[index] for index in np.argsort(
-                            [ranked_sid_index_dict[sid] for sid in sids if sid in ranked_sid_index_dict and sid not in already_reco_sids])][:20]
-
-                    if len(alt_sids) < self.min_nb_reco:
-                        logging.debug(f"{combo_name} got too less SIDs")
-                        continue
-
-                    already_reco_sids.update(alt_sids[:5])
-
-                    output_list.append(f"{combo_name}={'|'.join(alt_sids[:self.max_nb_reco])}")
-
-                    if len(output_list) == 4:    # TODO
-                        break
-                if output_list:
-                    self.JFET000006.put(userid.encode('utf-8'), '+'.join(output_list).encode('utf-8'))
-
-                    # TODO: dev
-                    #for i in range(len(output_list)):
-                    #    w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{output_list[i]}\n")
-
-                nb_reco_users += 1
-                if nb_reco_users % 1000 == 1:
-                    logging.info(f"{nb_reco_users} users got processed")
-                    # break  # TODO:dev
-
-        logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
-                                                                                             nb_reco_users / len(self.target_users)))
-    """
     def txt_processing(self, txt):
         return txt.replace("|", "&")  # avoid containing separator '|'
 
