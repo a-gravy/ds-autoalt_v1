@@ -75,90 +75,6 @@ class UserProfling():
         print("type: ", self.type_bucket)
         print("person: ", self.person_bucket)
 
-    def alt_combo_maker(self, person_meta_dict, sakuhin_query_table):
-        # Rule-base version
-        combo_query = []
-        combo_name = []
-
-        # 1. nation - genre
-        if self.nation_bucket and self.genre_bucket:
-            nation_name = self.nation_bucket.pop(0)[0]
-            genre_name = self.genre_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming('nation+genre', **{'nation':nation_name, 'genre':genre_name}))
-            # combo_sids.append(sakuhin_query_table.do_query([nation_name, genre_name]))
-            combo_query.append([nation_name, genre_name])
-
-        # TODO: special case for HOUGA, YOUGA, DRAMA, ADRAMA, FDRAMA
-        # 2. genre - type
-        if self.genre_bucket and self.type_bucket:
-            genre_name = self.genre_bucket.pop(0)[0]
-            type_name = self.type_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming('type+genre', **{'type':type_naming_converter[type_name], 'genre':genre_name}))
-            combo_query.append([genre_name, type_name])
-            # combo_sids.append(sakuhin_query_table.do_query([genre_name, type_name]))
-
-        # 3. type
-        if self.type_bucket:
-            type_name = self.type_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming("type", **{'type':type_naming_converter[type_name]}))
-            combo_query.append([type_name])
-            # combo_sids.append(sakuhin_query_table.do_query([type_name]))
-
-        # 4. person
-        if self.person_bucket:
-            while self.person_bucket:
-                person_name_id = self.person_bucket.pop(0)[0]
-                person = person_meta_dict.get(person_name_id, None)
-                if person:
-                    combo_name.append(self.alt_naming("person", **{'person': person.person_name}))
-                if len(person.sids) < 4:
-                    continue
-                else:
-                    combo_query.append(person.sids)
-                    break
-
-        # 5. nation
-        if self.nation_bucket:
-            nation_name = self.nation_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming("nation", **{'nation': nation_name}))
-            combo_query.append([nation_name])
-
-        # 6. genre
-        if self.genre_bucket:
-            genre_name = self.genre_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming("genre", **{'genre': genre_name}))
-            combo_query.append([genre_name])
-
-        # return combo_sids, combo_name
-        for query, name in zip(combo_query, combo_name):
-            if len(query) > 3:  # special case person.sids: don't need query
-                combo_sids = query
-            else:
-                combo_sids = sakuhin_query_table.do_query(query)
-            yield combo_sids, name
-
-    def alt_naming(self, combo, **kwargs):
-        """
-        :param combo: e.g. nation:日本-genre:action / genre:action-type:anime  / type:anime
-        :return:
-        """
-        if combo == "nation+type":
-            return f"{kwargs['type']}/{kwargs['nation']}のおすすめ"
-        elif combo == "nation+genre":
-            return f"{kwargs['nation']}/{kwargs['genre']}"
-        elif combo == "type+genre":
-            return f"{kwargs['type']}/{kwargs['genre']}"
-        elif combo == "nation":
-            return f"製作国:{kwargs['nation']}のピックアップ"
-        elif combo == "type":
-            return f"{kwargs['type']}のおすすめ"
-        elif combo == "genre":
-            return f"{kwargs['genre']}のおすすめ"
-        elif combo == "person":
-            return f"「{kwargs['person']}」のピックアップ作品"
-        else:
-            raise Exception(f"WRONG COMBO {combo}")
-
 
 class PersonMeta:
     def __init__(self, person_name, sids, roles):
@@ -323,7 +239,7 @@ class TagAlt(AutoAltMaker):
         :return:
         """
         if combo == "nation+type":
-            return f"{kwargs['type']}/{kwargs['nation']}のおすすめ"
+            return f"{kwargs['type']}/{kwargs['nation']}のオススメ"
         elif combo == "nation+genre":
             return f"{kwargs['nation']}/{kwargs['genre']}"
         elif combo == "type+genre":
@@ -331,9 +247,9 @@ class TagAlt(AutoAltMaker):
         elif combo == "nation":
             return f"製作国:{kwargs['nation']}のピックアップ"
         elif combo == "type":
-            return f"{kwargs['type']}のおすすめ"
+            return f"{kwargs['type']}のオススメ"
         elif combo == "genre":
-            return f"{kwargs['genre']}のおすすめ"
+            return f"{kwargs['genre']}のオススメ"
         elif combo == "person":
             return f"「{kwargs['person']}」のピックアップ作品"
         else:
@@ -465,87 +381,6 @@ class TagAlt(AutoAltMaker):
             combo_name_list.append(combo_name)
 
         return alt_combo_sids_list, combo_name_list
-        """
-        if user_profiling.nation_bucket and user_profiling.genre_bucket:
-            for i in range(len(user_profiling.nation_bucket)):
-                nation_name = user_profiling.nation_bucket[i]
-                for j in range(len(user_profiling.genre_bucket)):
-                    genre_name = user_profiling.genre_bucket[j]
-
-                    # get a pool of SID candidates
-                    combo_sid_pool = self.query_sid_pool([nation_name, genre_name], already_reco_sids)
-
-                    if not combo_sid_pool:  # discard combo w/ < self.min_nb_reco
-                        continue
-                    else:
-                        # rank sid and
-                        alt_sids = self.rank_sid_pool(combo_sid_pool, ranked_sid_index_dict)
-                        already_reco_sids.update(alt_sids[:5])
-                        user_profiling.nation_bucket.pop(i)
-                        user_profiling.genre_bucket.pop(j)
-                        combo_name.append(self.alt_naming('nation+genre', **{'nation': nation_name, 'genre': genre_name}))
-                        break
-                else:
-                    continue
-                break
-
-
-        # TODO: special case for HOUGA, YOUGA, DRAMA, ADRAMA, FDRAMA
-        # 2. genre - type
-        if user_profiling.genre_bucket and user_profiling.type_bucket:
-            genre_name = user_profiling.genre_bucket.pop(0)[0]
-            type_name =  user_profiling.type_bucket.pop(0)[0]
-            combo_name.append(
-                self.alt_naming('type+genre', **{'type': user_profiling.type_name_converting[type_name], 'genre': genre_name}))
-            combo_query.append([genre_name, type_name])
-            # combo_sids.append(sakuhin_query_table.do_query([genre_name, type_name]))
-
-        # 3. type
-        if user_profiling.type_bucket:
-            type_name = user_profiling.type_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming("type", **{'type': user_profiling.type_name_converting[type_name]}))
-            combo_query.append([type_name])
-            # combo_sids.append(sakuhin_query_table.do_query([type_name]))
-
-        # 4. person
-        if user_profiling.person_bucket:
-            while user_profiling.person_bucket:
-                person_name_id = user_profiling.person_bucket.pop(0)[0]
-                person = self.person_meta_dict.get(person_name_id, None)
-                if person:
-                    combo_name.append(self.alt_naming("person", **{'person': person.person_name}))
-
-                sids = self.black_list_filtering(person.sids)
-                sids = self.rm_series(sids)
-
-                if len(sids) < self.min_nb_reco:
-                    continue
-                else:
-                    combo_query.append(sids)
-                    print(f'person ALT = {sids}')
-                    break
-            # TODO: remove already_reco sids
-
-        # 5. nation
-        if user_profiling.nation_bucket:
-            nation_name = user_profiling.nation_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming("nation", **{'nation': nation_name}))
-            combo_query.append([nation_name])
-
-        # 6. genre
-        if user_profiling.genre_bucket:
-            genre_name = user_profiling.genre_bucket.pop(0)[0]
-            combo_name.append(self.alt_naming("genre", **{'genre': genre_name}))
-            combo_query.append([genre_name])
-
-        # return combo_sids, combo_name
-        for query, name in zip(combo_query, combo_name):
-            if len(query) > 3:  # special case person.sids: don't need query
-                combo_sid_pool = query
-            else:
-                combo_sid_pool = self.sakuhin_query_table.do_query(query)
-            yield combo_sid_pool, name
-        """
 
     def ippan_sakuhin(self,):
         tag_index_list = list(self.tag_index_dict.keys())
@@ -589,6 +424,7 @@ class TagAlt(AutoAltMaker):
         logging.info("[Phase] - making Tag ALTs, updating levelDB user_profiling_tags & levelDB JFET000006")
         nb_reco_users = 0
 
+        # for each line (daily watching history of a user)
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
             for line in efficient_reading(self.path_params["user_sid_history_path"], True):

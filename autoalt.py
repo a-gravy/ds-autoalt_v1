@@ -67,7 +67,8 @@ with open("config.yaml") as f:
 
 def allocate_fets_to_page_generation(feature_table_path, page_public_code):
     """
-    for users which have AutoALTs Reco, allocate & rank their autoalts, for Page Generation
+    for users which have AutoALTs Reco, allocate & rank their autoalts by ALT score,
+    for Page Generation
 
     e.g.
     userA,FET0012
@@ -115,7 +116,8 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
 
 def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target_users_path=None):
     """
-    allocate all feature files under dir_path
+    allocate all feature files under dir_path into one single file with uniform format
+    for uploading to Cassandra
 
     output: feature_table.csv @ config['header']['feature_table']
 
