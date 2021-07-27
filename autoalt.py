@@ -183,6 +183,25 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                     return f"{arr[0]},{arr[1]},{arr[2]},{arr[3]},,ippan_sakuhin,{arr[6]},{arr[4]},{arr[5]}\n"
 
             output_func = choutatsu_format
+        elif 'choutatsu_coldstart' in file:
+            """
+            choutatsu FETs from reco_ippan_choutatsu_coldstart_features.csv
+            format: user_multi_account_id,feature_public_code,sakuhin_codes,feature_score,feature_ranking,genre_tag_code,
+            platform,film_rating_order,feature_public_flg,feature_display_flg,feature_home_display_flg,
+            feature_public_start_datetime,feature_public_end_datetime,create_date
+            """
+            def coldstart_format(line):
+                arr = line.rstrip().split(",")
+                if "semiadult" in file:
+                    return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
+                elif "ippan" in file:
+                    # one line for logged-user-coldstart
+                    # one line for non-logged-user-coldstart
+                    # don't save title info
+                    return f'logged-user-coldstart,{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n' \
+                        f'non-logged-user-coldstart,{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
+
+            output_func = coldstart_format
         else:  #if file == 'dim_autoalt.csv' or file == "target_users.csv":
             logging.info(f'skip {file}')
             continue
@@ -215,7 +234,6 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = toppick_format
         '''
-        existing_user_fets = {}  # {user_multi_account_id:feature_public_code}
 
         linecnt = 0
         for line in efficient_reading(os.path.join(dir_path, file)):
