@@ -12,6 +12,7 @@ s3_dir:
   ippan_bpr_root: s3://unext-datascience-prod/jobs/ippanreco/
   #####
   dim_autoalt.csv: s3://unext-datascience/alts/
+  target_users.csv: s3://unext-datascience/alts/
   superusers.csv: s3://unext-datascience/alts/
   sid_series.csv: s3://unext-datascience/alts/
   sid_name_dict.csv: s3://unext-datascience/alts/

@@ -1,6 +1,5 @@
-# 0.9.8 trending
-# 0.9.9 Tag
-VERSION ?= 1.0.4
+ # current 1.0.4
+VERSION ?= 1.0.5
 NAME ?= altmaker
 
 REPOSITORY ?= harbor.unext.jp/datascience-dev
@@ -23,7 +22,7 @@ build_whl:
 build_docker:
 	echo "$(IMAGE)"
 	docker build -t $(IMAGE) .
-	# docker build -t $(IMAGE_LATEST) .
+	docker build -t $(IMAGE_LATEST) .
 	# docker build -t $(IMAGE) -t $(IMAGE_LATEST) .
 
 clean:
@@ -32,8 +31,9 @@ clean:
 
 push_to_harbor:
 	echo $(REPOSITORY)
-	# docker push $(IMAGE_LATEST)
+	docker push $(IMAGE_LATEST)
 	docker push $(IMAGE)
+
 
 
 #build: clean build_egg build_docker

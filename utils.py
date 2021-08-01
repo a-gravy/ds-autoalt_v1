@@ -111,7 +111,6 @@ def batch(iterable, n=1):
         yield iterable[ndx:min(ndx + n, l)]
 
 
-
 def rank(model,
            target_users=None,
            target_items=None,

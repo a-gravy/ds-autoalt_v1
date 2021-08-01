@@ -5,6 +5,7 @@ Usage:
     utils.py unzip_dir --input=PATH
     utils.py demo_candidates --input=PATH
     utils.py pfid_div --input=PATH
+    utils.py target_users --input=PATH [ --superusers=PATH ] [<nb>...]
 
 Options:
     -h --help Show this screen
@@ -271,6 +272,35 @@ def toppick_rm_series(series_path, input, output, target_users_path):
                     break
 
 
+def make_target_users(pfid_path, target_pfid, superusers_path=None):
+    """
+    pfid_path with format:
+        pfid_matsubi,user_platform_id,user_multi_account_id
+        4,32464014,PM029911034
+
+    target_pfid: list of nb e.g. ['5', '6']
+
+    if superusers_path: superusers are inside target_users
+
+    :return:
+    """
+    target_pfid = set(target_pfid)
+
+    with open("target_users.csv", "w") as w:
+        w.write("user_multi_account_id\n")
+
+        if superusers_path:
+            for line in efficient_reading(superusers_path, header_format="user_multi_account_id"):
+                w.write(line)
+
+        for line in efficient_reading(pfid_path, header_format="pfid_matsubi,user_platform_id,user_multi_account_id"):
+            arr = line.rstrip().split(',')
+            last_pfid = arr[0]
+            user_id = arr[-1]
+            if last_pfid in target_pfid:
+                w.write(f"{user_id}\n")
+
+
 def main():
     arguments = docopt(__doc__, version='0.9.0')
     logging.info(arguments)
@@ -280,9 +310,13 @@ def main():
         unzip_files_in_dir(arguments['--input'])
     elif arguments['pfid_div']:
         pfid_divider(arguments['--input'])
+    elif arguments["target_users"]:
+        # superusers + pfid 1,2,3 = python autoalts/utils.py target_users --superusers data/superusers.csv   --input data/user_pfid.csv 1 2 3
+        # superusers only = python autoalts/utils.py target_users --superusers data/superusers.csv   --input data/user_pfid.csv 1 2 3
+        make_target_users(pfid_path=arguments['--input'], target_pfid=arguments['<nb>'],
+                          superusers_path=arguments["--superusers"])
     else:
         raise Exception("Unimplemented ERROR")
-
 
 
 if __name__ == '__main__':
