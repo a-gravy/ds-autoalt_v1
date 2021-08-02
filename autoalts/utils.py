@@ -285,6 +285,7 @@ def make_target_users(pfid_path, target_pfid, superusers_path=None):
     :return:
     """
     target_pfid = set(target_pfid)
+    user_cnt = 0
 
     with open("target_users.csv", "w") as w:
         w.write("user_multi_account_id\n")
@@ -292,6 +293,7 @@ def make_target_users(pfid_path, target_pfid, superusers_path=None):
         if superusers_path:
             for line in efficient_reading(superusers_path, header_format="user_multi_account_id"):
                 w.write(line)
+                user_cnt += 1
 
         for line in efficient_reading(pfid_path, header_format="pfid_matsubi,user_platform_id,user_multi_account_id"):
             arr = line.rstrip().split(',')
@@ -299,6 +301,9 @@ def make_target_users(pfid_path, target_pfid, superusers_path=None):
             user_id = arr[-1]
             if last_pfid in target_pfid:
                 w.write(f"{user_id}\n")
+                user_cnt += 1
+
+    logging.info(f"We have {user_cnt} target users")
 
 
 def main():

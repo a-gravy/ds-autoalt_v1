@@ -523,10 +523,18 @@ class TagAlt(AutoAltMaker):
 
     def output_from_levelDB(self):
         logging.info("output to JFET000006.csv from levelDB JFET000006")
+
+        user_cnt = 0
+
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
             for key, value in self.JFET000006:
                 userid = key.decode('utf-8')
+
+                if self.target_users and userid not in self.target_users:
+                    continue
+
+                user_cnt += 1
                 output_list = value.decode("utf-8")
                 if output_list:
                     for i, output_str in enumerate(output_list.split("+")):
@@ -536,4 +544,7 @@ class TagAlt(AutoAltMaker):
                             f"{userid},{self.alt_info['feature_public_code'].values[0]}{i + 1},{self.create_date},{output_arr[1]},"
                             f"{combo_name},{self.alt_info['domain'].values[0]},1,"
                             f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+
+        logging.info(f"{user_cnt} users got Tag ALTs")
+
 
