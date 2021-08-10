@@ -1,4 +1,5 @@
 select
+  distinct
   pfid_matsubi,
   user_platform_id,
   user_multi_account_id
