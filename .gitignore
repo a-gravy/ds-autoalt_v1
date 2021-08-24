@@ -19,7 +19,6 @@ JFET000006/
 *.ipynb
 build/
 tmp/
-bpr/
 check/
 fets/
 develop-eggs/
