@@ -1,7 +1,8 @@
 import logging
 from autoalts.autoalt_maker import AutoAltMaker
 from utils import efficient_reading
-from bpr.implicit_recommender import rerank
+# from bpr.implicit_recommender import rerank
+from ranker import Ranker
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +26,10 @@ class Trending(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
-    def ippan_sakuhin(self, trending_path, toppick_path, bpr_model_path):
+    def ippan_sakuhin(self, trending_path, toppick_path, model_path):
+
+        ranker = Ranker(model_path=model_path)
+
         pool_SIDs = set()
         # "episode_code,SID,display_name,main_genre_code,nb_watch"
         for line in efficient_reading(trending_path, True, "today_top_rank,sakuhin_public_code,sakuhin_name,uu,zenkai_uu,trend_perc"):
@@ -45,7 +49,7 @@ class Trending(AutoAltMaker):
         pool_SIDs = self.rm_series(pool_SIDs)
         logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
 
-        model = self.load_model(bpr_model_path)
+        model = self.load_model(model_path)
 
         nb_all_users = 0
         nb_output_users = 0
@@ -56,10 +60,8 @@ class Trending(AutoAltMaker):
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
-            for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs,
-                                                       filter_already_liked_items=True,
-                                                       batch_size=10000):
-
+            #for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs, filter_already_liked_items=True, batch_size=10000):
+            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs, batch_size=10000):
                 nb_all_users += 1
                 if nb_all_users % 50000 == 0:
                     logging.info(
@@ -71,7 +73,9 @@ class Trending(AutoAltMaker):
                     sid_list = [sid for sid in sid_list if sid not in toppick_sids]
 
                 reco = self.black_list_filtering(sid_list)
-                reco = self.rm_duplicates(reco)
+                # TODO
+                # reco = self.rm_duplicates(reco)
+                # print('sid_list = ', sid_list)
 
                 if len(reco) < self.min_nb_reco:
                     continue

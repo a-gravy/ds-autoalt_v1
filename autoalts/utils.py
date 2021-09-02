@@ -20,6 +20,7 @@ import gzip
 import shutil
 import yaml
 import boto3
+import pickle
 from docopt import docopt
 
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,15 @@ def efficient_reading(input_path, with_header=True, header_format=None):
                 yield line
             else:
                 break
+
+
+def batch(iterable, n=1):
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
+
+def load_model(path):
+    return pickle.load(open(path, "rb"))
 
 
 def pfid_divider(input_path="data/user_pfid.csv", superusers_path="data/superusers.csv"):
