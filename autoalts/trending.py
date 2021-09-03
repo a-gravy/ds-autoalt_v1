@@ -1,7 +1,6 @@
 import logging
 from autoalts.autoalt_maker import AutoAltMaker
 from utils import efficient_reading
-# from bpr.implicit_recommender import rerank
 from ranker import Ranker
 
 logging.basicConfig(level=logging.INFO)
@@ -61,7 +60,8 @@ class Trending(AutoAltMaker):
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
             #for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs, filter_already_liked_items=True, batch_size=10000):
-            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs, batch_size=10000):
+            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
+                                                filter_already_liked_items=True, batch_size=10000):
                 nb_all_users += 1
                 if nb_all_users % 50000 == 0:
                     logging.info(

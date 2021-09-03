@@ -1,5 +1,5 @@
- # current 1.0.4
-VERSION ?= 1.0.5
+ # current prod 1.0.5
+VERSION ?= 1.0.6
 NAME ?= altmaker
 
 REPOSITORY ?= harbor.unext.jp/datascience-dev

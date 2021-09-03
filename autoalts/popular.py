@@ -3,6 +3,7 @@ import operator
 from autoalts.autoalt_maker import AutoAltMaker
 from utils import efficient_reading
 from bpr.implicit_recommender import rerank
+from ranker import Ranker
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,6 +27,8 @@ class Popular(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
+    # the old one using bpr + rerank
+    """
     def ippan_sakuhin(self, popular_sids_path, already_reco_path, bpr_model_path):
         pool_SIDs = set()
         for line in efficient_reading(popular_sids_path, True, "main_genre_code,sakuhin_public_code,sakuhin_name,row_th"):
@@ -71,4 +74,53 @@ class Popular(AutoAltMaker):
             logging.info(
                 "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
                                                                                          nb_output_users / nb_all_users * 100))
+    """
 
+    def ippan_sakuhin(self, popular_sids_path, already_reco_path, model_path):
+
+        ranker = Ranker(model_path=model_path)
+
+        pool_SIDs = set()
+        for line in efficient_reading(popular_sids_path, True, "main_genre_code,sakuhin_public_code,sakuhin_name,row_th"):
+            pool_SIDs.add(line.split(",")[1])
+
+        logging.info(f"nb of SID in pool = {len(pool_SIDs)}")
+        pool_SIDs = self.rm_series(pool_SIDs)
+        logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
+
+        self.read_already_reco_sids(already_reco_path)
+
+        model = self.load_model(model_path)
+
+        nb_all_users = 0
+        nb_output_users = 0
+
+        already_reco_output = open("already_reco_SIDs.csv", "w")
+        already_reco_output.write("userid,sid_list\n")
+
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['feature_table'])
+            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
+                                                filter_already_liked_items=True, batch_size=10000):
+                nb_all_users += 1
+                if nb_all_users % 50000 == 0:
+                    logging.info(
+                        'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
+
+                # remove blacklist & already_reco SIDs
+                rm_sids = self.blacklist | self.already_reco_dict.get(userid, set())
+                reco = [SID for SID in sid_list if SID not in rm_sids]
+                already_reco_output.write(f"{userid},{ '|'.join(list(self.already_reco_dict.get(userid, set())) + reco[:5])}\n")
+
+                if len(reco) < self.min_nb_reco:
+                    continue
+
+                w.write(
+                    f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+                nb_output_users += 1
+
+            logging.info(
+                "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
+                                                                                         nb_output_users / nb_all_users * 100))
