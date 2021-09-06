@@ -10,6 +10,7 @@ PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
 # from bpr.implicit_recommender import rank
 from utils import efficient_reading, rank
+from ranker import Ranker
 
 logger = logging.getLogger(__name__)
 
@@ -183,9 +184,6 @@ class TagAlt(AutoAltMaker):
             # update levelDB JFET000006 & user_profiling_tags
             self.ippan_sakuhin()
 
-            # make JFET000006.csv based on levelDB JFET000006
-            self.output_from_levelDB()
-
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "adult":
@@ -242,7 +240,7 @@ class TagAlt(AutoAltMaker):
             return f"{kwargs['type']}/{kwargs['nation']}のオススメ"
         elif combo == "nation+genre":
             return f"{kwargs['nation']}/{kwargs['genre']}"
-        elif combo == "type+genre":
+        elif combo == "type+genre" or combo == "genre+type":
             return f"{kwargs['type']}/{kwargs['genre']}"
         elif combo == "nation":
             return f"製作国:{kwargs['nation']}のピックアップ"
@@ -269,118 +267,36 @@ class TagAlt(AutoAltMaker):
         else:
             return list(combo_sids)
 
-    def rank_sid_pool(self, combo_sid_pool, ranked_sid_index_dict):
-        return [combo_sid_pool[index] for index in np.argsort([ranked_sid_index_dict[sid] for sid in combo_sid_pool
-                                                               if sid in ranked_sid_index_dict])][:self.max_nb_reco]
-
-    def make_alt_combo_A_B(self, bucket_a, bucket_b, ranked_sid_index_dict, already_reco_sids):
-        if bucket_a and bucket_b:
-            for i in range(len(bucket_a)):
-                name_a = bucket_a[i][0]  # get '歴史・時代劇' from ('歴史・時代劇', 4.91)
-                for j in range(len(bucket_b)):
-                    name_b = bucket_b[j][0]
-
-                    # get a pool of SID candidates
-                    combo_sid_pool = self.query_sid_pool([name_a, name_b], already_reco_sids)
-
-                    if not combo_sid_pool:  # discard combo w/ < self.min_nb_reco
-                        continue
-                    else:
-                        # rank sid
-                        alt_sids = self.rank_sid_pool(combo_sid_pool, ranked_sid_index_dict)
-                        already_reco_sids.update(alt_sids[:5])
-                        bucket_a.pop(i)
-                        bucket_b.pop(j)
-
-                        return alt_sids, [name_a, name_b]
-        return None, None
-
-    def make_alt_combo_A(self, bucket_a, ranked_sid_index_dict, already_reco_sids):
-        if bucket_a:
-            for i in range(len(bucket_a)):
-                name_a = bucket_a[i][0]  # get '歴史・時代劇' from ('歴史・時代劇', 4.91)
-                # get a pool of SID candidates
-                combo_sid_pool = self.query_sid_pool([name_a], already_reco_sids)
-
-                if not combo_sid_pool:  # discard combo w/ < self.min_nb_reco
-                    continue
-                else:
-                    # rank sid
-                    alt_sids = self.rank_sid_pool(combo_sid_pool, ranked_sid_index_dict)
-                    already_reco_sids.update(alt_sids[:5])
-                    bucket_a.pop(i)
-
-                    return alt_sids, name_a
-        return None, None
-
-    def alt_combo_maker(self, user_profiling, ranked_sid_index_dict):
+    def alt_combos(self, user_profiling):
         # Rule-base version
-        alt_combo_sids_list = []
         combo_name_list = []
-        already_reco_sids = self.already_reco_dict.get(user_profiling.userid, set())
 
         # 1. nation - genre
-        alt_combo_sids , combo_names = self.make_alt_combo_A_B(user_profiling.nation_bucket, user_profiling.genre_bucket, ranked_sid_index_dict, already_reco_sids)
-        if alt_combo_sids and combo_names:
-            alt_combo_sids_list.append(alt_combo_sids)
-            combo_name = self.alt_naming('nation+genre', **{'nation': combo_names[0], 'genre': combo_names[1]})
-            combo_name_list.append(combo_name)
+        if user_profiling.nation_bucket and user_profiling.genre_bucket:
+            combo_name_list.append(f'nation+{user_profiling.nation_bucket.pop(0)[0]}+genre+{user_profiling.genre_bucket.pop(0)[0]}')
 
         # 2. genre - type
-        alt_combo_sids, combo_names = self.make_alt_combo_A_B(user_profiling.genre_bucket, user_profiling.type_bucket, ranked_sid_index_dict,
-                                    already_reco_sids)
-        if alt_combo_sids and combo_names:
-            alt_combo_sids_list.append(alt_combo_sids)
-            combo_name = self.alt_naming('type+genre', **{'type': combo_names[0], 'genre': combo_names[1]})
-            combo_name_list.append(combo_name)
+        if user_profiling.genre_bucket and user_profiling.type_bucket:
+            combo_name_list.append(f'genre+{user_profiling.genre_bucket.pop(0)[0]}+type+{user_profiling.type_bucket.pop(0)[0]}')
 
         # 3. type
-        alt_combo_sids, combo_name = self.make_alt_combo_A(user_profiling.type_bucket, ranked_sid_index_dict,
-                                                              already_reco_sids)
-        if alt_combo_sids and combo_name:
-            alt_combo_sids_list.append(alt_combo_sids)
-            combo_name = self.alt_naming("type", **{'type': combo_name})
-            combo_name_list.append(combo_name)
+        if user_profiling.type_bucket:
+            combo_name_list.append(f'type+{user_profiling.type_bucket.pop(0)[0]}')
 
         # 4. person
-        for person_name_id in user_profiling.person_bucket:
-            person_name_id = str(person_name_id[0])  # get '301150' from ('301150', 4.91)
-            person = self.person_meta_dict.get(person_name_id, None)
-            if person:
-
-                combo_sid_pool = self.black_list_filtering(person.sids)
-                combo_sid_pool = self.rm_series(combo_sid_pool)
-                combo_sid_pool = set(combo_sid_pool) - already_reco_sids
-
-                if len(combo_sid_pool) < self.min_nb_reco:
-                    continue
-
-                alt_sids = self.rank_sid_pool(list(combo_sid_pool), ranked_sid_index_dict)
-                if len(alt_sids) < self.min_nb_reco:
-                    continue
-
-                already_reco_sids.update(alt_sids[:5])
-                alt_combo_sids_list.append(alt_sids)
-                combo_name_list.append(self.alt_naming("person", **{'person': person.person_name}))
-                break
+        if user_profiling.person_bucket:
+            person_name_id = str(user_profiling.person_bucket.pop(0)[0])  # get '301150' from ('301150', 4.91)
+            combo_name_list.append(f'person+{person_name_id}')  # person is an obj
 
         # 5. nation
-        alt_combo_sids, combo_name = self.make_alt_combo_A(user_profiling.nation_bucket, ranked_sid_index_dict,
-                                                           already_reco_sids)
-        if alt_combo_sids and combo_name:
-            alt_combo_sids_list.append(alt_combo_sids)
-            combo_name = self.alt_naming("nation", **{'nation': combo_name})
-            combo_name_list.append(combo_name)
+        if user_profiling.nation_bucket:
+            combo_name_list.append(f'nation+{user_profiling.nation_bucket.pop(0)[0]}')
 
         # 6. genre
-        alt_combo_sids, combo_name = self.make_alt_combo_A(user_profiling.genre_bucket, ranked_sid_index_dict,
-                                                           already_reco_sids)
-        if alt_combo_sids and combo_name:
-            alt_combo_sids_list.append(alt_combo_sids)
-            combo_name = self.alt_naming("genre", **{'genre': combo_name})
-            combo_name_list.append(combo_name)
+        if user_profiling.genre_bucket:
+            combo_name_list.append(f'genre+{user_profiling.genre_bucket.pop(0)[0]}')
 
-        return alt_combo_sids_list, combo_name_list
+        return combo_name_list
 
     def ippan_sakuhin(self,):
         tag_index_list = list(self.tag_index_dict.keys())
@@ -411,8 +327,6 @@ class TagAlt(AutoAltMaker):
 
         self.read_already_reco_sids(self.path_params["already_reco_path"])
 
-        model = self.load_model(self.path_params["bpr_model_path"])
-
         # for bucket categorization
         if not self.type_set or not self.genre_set or not self.nation_set:
             for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
@@ -422,82 +336,113 @@ class TagAlt(AutoAltMaker):
                 self.nation_set.update(sid_nations)
 
         logging.info("[Phase] - making Tag ALTs, updating levelDB user_profiling_tags & levelDB JFET000006")
-        nb_reco_users = 0
+
+        # RECALL part
+        combo_user_dict = self.recall(tag_index_list)
+        logging.info(f'total nb of ALTs: {len(combo_user_dict)} ALTs')  # 5694 ALTs
+
+        # RANK part
+        self.rank(combo_user_dict, model_path=self.path_params["bpr_model_path"])
+
+        # RERANK & output part
+        self.rerank_and_output_from_leveldb()
+
+    def recall(self, tag_index_list):
+        nb_lines = 0
+        combo_user_dict = defaultdict(list)
 
         # for each line (daily watching history of a user)
-        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['feature_table'])
-            for line in efficient_reading(self.path_params["user_sid_history_path"], True):
-                userid = line.split(",")[0]
+        for line in efficient_reading(self.path_params["user_sid_history_path"], True):
+            userid = line.split(",")[0]
 
-                if self.target_users and userid not in self.target_users:
-                    continue
+            if self.target_users and userid not in self.target_users:
+                continue
 
-                # read previous user_profiling_vector from leveldb
-                user_profiling_vector = self.leveldb.get(userid.encode('utf-8'), b'').decode("utf-8")
-                if user_profiling_vector:
-                    # string -> np.array
-                    user_profiling_vector = np.array(user_profiling_vector.split('|'), dtype=float)
+            # clear the user reco in leveldb
+            self.JFET000006.put(userid.encode('utf-8'), ''.encode('utf-8'))
+
+            # read previous user_profiling_vector from leveldb
+            user_profiling_vector = self.leveldb.get(userid.encode('utf-8'), b'').decode("utf-8")
+            if user_profiling_vector:
+                # string -> np.array
+                user_profiling_vector = np.array(user_profiling_vector.split('|'), dtype=float)
+            else:
+                user_profiling_vector = np.zeros(len(self.tag_index_dict))
+
+            # build user vector based on history (from old -> new)
+            for sid in line.rstrip().split(",")[1].split("|")[::-1]:
+                sid_vector = self.sid_vector.get(sid, [])
+                if sid_vector != []:
+                    user_profiling_vector = user_profiling_vector * 0.9 + sid_vector
+
+            # update leveldb: np.array -> string
+            self.leveldb.put(userid.encode('utf-8'),
+                             '|'.join(['{:.3f}'.format(x) for x in user_profiling_vector]).encode('utf-8'))
+
+            # build Tag combo based on user profile
+            user_profiling = UserProfling(userid)
+            # build user_profiling by adding top Tags
+            for index_tag in (np.argsort(-user_profiling_vector))[:20]:
+                if user_profiling_vector[index_tag] < 0.01:
+                    break
+                user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag],
+                                   self.type_set, self.genre_set, self.nation_set)
+
+            # -> {nation+genre: (user_id, ALT_name)}  似乎越多越好
+            for i, alt_combo in enumerate(self.alt_combos(user_profiling)):
+                combo_user_dict[alt_combo].append(userid)
+
+            nb_lines += 1
+            if nb_lines % 1000 == 1:
+                logging.info(f"{nb_lines} lines got processed")
+            # if nb_lines > 100:
+            #    break  # TODO: dev break
+        return combo_user_dict
+
+    def rank(self, combo_user_dict, model_path):
+        ranker = Ranker(model_path=model_path)
+
+        for alt_combo, user_id_list in combo_user_dict.items():
+            arr = alt_combo.split("+")
+            if len(arr) == 4:
+                # query_sid_pool: query, remove blacklist, remove same series, return None if < self.min_nb_reco
+                pool_SIDs = self.query_sid_pool([arr[1], arr[3]])
+                combo_name = self.alt_naming(f'{arr[0]}+{arr[2]}', **{arr[0]: arr[1], arr[2]: arr[3]})
+            elif len(arr) == 2:
+                if arr[0] == 'person':
+                    person = self.person_meta_dict.get(arr[1], None)
+                    if person:
+                        combo_name = self.alt_naming(arr[0], **{arr[0]: person.person_name})
+                        pool_SIDs = self.black_list_filtering(person.sids)
+                    else:
+                        continue
                 else:
-                    user_profiling_vector = np.zeros(len(self.tag_index_dict))
+                    combo_name = self.alt_naming(arr[0], **{arr[0]: arr[1]})
+                    pool_SIDs = self.query_sid_pool([arr[1]])
+            else:
+                raise Exception(f"alt_combo wrong in {alt_combo}")
 
-                # build user vector based on history (from old -> new)
-                for sid in line.rstrip().split(",")[1].split("|")[::-1]:
-                    sid_vector = self.sid_vector.get(sid, [])
-                    if sid_vector != []:
-                        user_profiling_vector = user_profiling_vector * 0.9 + sid_vector
+            if not pool_SIDs:  # discard combo w/ < self.min_nb_reco
+                logging.debug(f"discard {alt_combo} due to no combo_sid_pool")
+                continue
+            else:
+                logging.debug(f"rank {combo_name} with {len(pool_SIDs)} pool_SIDs for {len(user_id_list)} users")
 
-                # update leveldb: np.array -> string
-                self.leveldb.put(userid.encode('utf-8'),
-                       '|'.join(['{:.3f}'.format(x) for x in user_profiling_vector]).encode('utf-8'))
+                for userid, sid_list in ranker.rank(target_users=user_id_list, target_items=pool_SIDs,
+                                                    filter_already_liked_items=True, batch_size=1000):
 
-                # build Tag combo based on user profile
-                user_profiling = UserProfling(userid)
-                for index_tag in (np.argsort(-user_profiling_vector))[:20]:
-                    if user_profiling_vector[index_tag] < 0.01:
+                    if not userid or not sid_list:
+                        logging.info("not userid or not sid_list")
                         break
-                    user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag],
-                                       self.type_set, self.genre_set, self.nation_set)
 
-                # get personalized SID ranking
-                ranked_sid_list = None
-                for userid, sid_list, score_list in rank(model, target_users=[userid],
-                                                           filter_already_liked_items=True, top_n=-1, batch_size=10000):
-                    ranked_sid_list = sid_list
+                    user_reco = self.JFET000006.get(userid.encode('utf-8'), b'').decode("utf-8")
 
-                if not ranked_sid_list:
-                    logging.debug(f"user:{userid} has no data in the model")
-                    continue
+                    if not user_reco:
+                        user_reco = f"{combo_name}={'|'.join(sid_list[:self.max_nb_reco])}"
+                    else:
+                        user_reco = user_reco + "+" + f"{combo_name}={'|'.join(sid_list[:self.max_nb_reco])}"
 
-                ranked_sid_index_dict = {sid:index for index, sid in enumerate(ranked_sid_list)}
-
-                # prevent duplicates
-                # read toppick[:5], trending[:5], popular[:5] as default, then update every Tag ALT
-                # already_reco_sids = self.already_reco_dict.get(userid, set())
-                # output_list = [ alt_name1:SIDa|SIDb|SIDc ]
-                output_list = []
-
-                combo_sid_list, combo_name_list = self.alt_combo_maker(user_profiling, ranked_sid_index_dict)
-
-                for combo_sid, combo_name in zip(combo_sid_list, combo_name_list):
-                    output_list.append(f"{combo_name}={'|'.join(combo_sid[:self.max_nb_reco])}")
-
-                    if len(output_list) == 4:    # TODO
-                        break
-                if output_list:
-                    self.JFET000006.put(userid.encode('utf-8'), '+'.join(output_list).encode('utf-8'))
-
-                    # TODO: dev
-                    #for i in range(len(output_list)):
-                    #    w.write(f"{userid},{self.alt_info['feature_public_code'].values[0]}_{i + 1},{output_list[i]}\n")
-
-                nb_reco_users += 1
-                if nb_reco_users % 1000 == 1:
-                    logging.info(f"{nb_reco_users} users got processed")
-                    # break  # TODO:dev
-
-        logging.info("{} users got reco / total nb of target user: {}, coverage rate={:.3f}".format(nb_reco_users, len(self.target_users),
-                                                                                             nb_reco_users / len(self.target_users)))
+                    self.JFET000006.put(userid.encode('utf-8'), user_reco.encode('utf-8'))
 
     def txt_processing(self, txt):
         return txt.replace("|", "&")  # avoid containing separator '|'
@@ -521,7 +466,7 @@ class TagAlt(AutoAltMaker):
 
         return sid_type, sid_genres, set(sid_nations)
 
-    def output_from_levelDB(self):
+    def rerank_and_output_from_leveldb(self):
         logging.info("output to JFET000006.csv from levelDB JFET000006")
 
         user_cnt = 0
@@ -537,9 +482,23 @@ class TagAlt(AutoAltMaker):
                 user_cnt += 1
                 output_list = value.decode("utf-8")
                 if output_list:
+
+                    already_reco_sids = self.already_reco_dict.get(userid, set())
+
                     for i, output_str in enumerate(output_list.split("+")):
                         output_arr = output_str.split("=")
                         combo_name = output_arr[0]
+
+                        # blacklist removal, same series removal are done by query_sid_pool
+                        # remove already reco
+                        reco_sids = [sid for sid in output_arr[1].split("|") if sid not in already_reco_sids]
+
+                        if len(reco_sids) < self.min_nb_reco:
+                            continue
+
+                        # update top 6 to already reco
+                        already_reco_sids.update(reco_sids[:6])
+
                         w.write(
                             f"{userid},{self.alt_info['feature_public_code'].values[0]}{i + 1},{self.create_date},{output_arr[1]},"
                             f"{combo_name},{self.alt_info['domain'].values[0]},1,"

@@ -29,6 +29,10 @@ class Ranker:
         filtered_items_ids = list(map(lambda x: self.collab_model.model.user_item_matrix.item2id[x], filtered_items))
         item_vector = self.collab_model.model.item_factors.take(filtered_items_ids, axis=0)
 
+        if len(filtered_users_ids) == 0 or len(filtered_items_ids) == 0:
+            logging.debug("not filtered_users_ids or not item_vector")
+            return None, None
+
         if filter_already_liked_items:
             # seen matrix
             filtered_seen_matrix = self.collab_model.model.user_item_matrix.matrix[:, filtered_items_ids]
