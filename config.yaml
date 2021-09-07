@@ -10,6 +10,7 @@ s3_dir:
   ippan_sakuhin: s3://unext-datascience/alts/ippan_sakuhin/
   semiadult: s3://unext-datascience/alts/semiadult/
   ippan_bpr_root: s3://unext-datascience-prod/jobs/ippanreco/
+  ippan_als_root: s3://unext-datascience-prod/jobs/collaborative/ippan/
   #####
   dim_autoalt.csv: s3://unext-datascience/alts/
   target_users.csv: s3://unext-datascience/alts/

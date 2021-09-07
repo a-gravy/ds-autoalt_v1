@@ -486,6 +486,11 @@ class TagAlt(AutoAltMaker):
                     already_reco_sids = self.already_reco_dict.get(userid, set())
 
                     for i, output_str in enumerate(output_list.split("+")):
+
+                        # TODO: control the nb of tag alts here
+                        if i > 4:  # JFET0000061 ~ JFET0000065
+                            break
+
                         output_arr = output_str.split("=")
                         combo_name = output_arr[0]
 
