@@ -83,7 +83,7 @@ class Trending(AutoAltMaker):
                 already_reco_output.write(f"{userid},{'|'.join(sid_list[:5] + list(toppick_sids))}\n")  # rm top 5 only
 
                 w.write(
-                    f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco)},"
+                    f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
                     f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
                     f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
                 nb_output_users += 1
