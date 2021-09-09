@@ -14,6 +14,8 @@ class Trending(AutoAltMaker):
         if kwargs['target_users_path']:
             self.target_users = self.read_target_users(kwargs['target_users_path'])
 
+        self.batch_size = int(kwargs["batch_size"])
+
     def make_alt(self, **kwargs):
         logging.info(f"making {self.alt_info} using model:{kwargs['bpr_model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
@@ -61,7 +63,7 @@ class Trending(AutoAltMaker):
             w.write(self.config['header']['feature_table'])
             #for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs, filter_already_liked_items=True, batch_size=10000):
             for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
-                                                filter_already_liked_items=True, batch_size=10000):
+                                                filter_already_liked_items=True, batch_size=self.batch_size):
                 nb_all_users += 1
                 if nb_all_users % 50000 == 0:
                     logging.info(
@@ -73,9 +75,6 @@ class Trending(AutoAltMaker):
                     sid_list = [sid for sid in sid_list if sid not in toppick_sids]
 
                 reco = self.black_list_filtering(sid_list)
-                # TODO
-                # reco = self.rm_duplicates(reco)
-                # print('sid_list = ', sid_list)
 
                 if len(reco) < self.min_nb_reco:
                     continue

@@ -134,6 +134,8 @@ class TagAlt(AutoAltMaker):
 
         self.path_params = {}
 
+        self.batch_size = int(kwargs["batch_size"])
+
         self.target_users = None
         if kwargs["target_users_path"]:
             self.target_users = self.read_target_users(kwargs["target_users_path"])
@@ -429,7 +431,7 @@ class TagAlt(AutoAltMaker):
                 logging.debug(f"rank {combo_name} with {len(pool_SIDs)} pool_SIDs for {len(user_id_list)} users")
 
                 for userid, sid_list in ranker.rank(target_users=user_id_list, target_items=pool_SIDs,
-                                                    filter_already_liked_items=True, batch_size=1000):
+                                                    filter_already_liked_items=True, batch_size=self.batch_size):
 
                     if not userid or not sid_list:
                         logging.info("not userid or not sid_list")

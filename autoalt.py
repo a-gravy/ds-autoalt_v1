@@ -4,9 +4,9 @@ Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py trending <feature_public_code> --model=PATH --trending=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py popular <feature_public_code> --model=PATH --popular=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py trending <feature_public_code> --model=PATH --trending=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --batch_size=<bs>]
+    autoalt.py popular <feature_public_code> --model=PATH --popular=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
@@ -25,6 +25,7 @@ Options:
     --max_nb_reco=<nbr>   Maximal number of items in one ALT [default: 20]
     --min_nb_reco=<tn>    Minimal number of items in one ALT [default: 4]
     --nb_alt=<nbgr>       how many alts made for each user  [default: 3]
+    --batch_size=<bs>     the batch size of matrix operation [default: 1000]
     feature_public_code   detail@dim_autoalt
     ALT_domain            SOUGOU, movie, book, manga, music … etc. SOUGOU means mixing all ALT_domain types together
     --blacklist PATH      filter_out_sakuhin_implicit.csv
@@ -404,6 +405,7 @@ def main():
                 'trending_path': arguments["--trending"],
                 'toppick_path': arguments["--toppick"],
                 'bpr_model_path': arguments["--model"],
+                'batch_size': arguments["--batch_size"]
             }
             kwargs.update(basic_kwarg)
             alt_func = Trending
@@ -416,6 +418,7 @@ def main():
                 'popular_sids_path': arguments["--popular"],
                 'already_reco_path': arguments["--already_reco"],
                 'bpr_model_path': arguments["--model"],
+                'batch_size': arguments["--batch_size"]
             }
             kwargs.update(basic_kwarg)
             alt_func = Popular
@@ -430,7 +433,8 @@ def main():
                 'already_reco_path': 'data/already_reco_SIDs.csv',
                 'sakuhin_meta_path': 'data/sakuhin_meta.csv',
                 'lookup_table_path': "data/sakuhin_lookup_table.csv",
-                "sakuhin_cast_path": "data/sakuhin_cast.csv"
+                "sakuhin_cast_path": "data/sakuhin_cast.csv",
+                'batch_size': arguments["--batch_size"]
             }
             kwargs.update(basic_kwarg)
             alt_func = TagAlt
