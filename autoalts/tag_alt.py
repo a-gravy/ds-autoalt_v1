@@ -507,7 +507,8 @@ class TagAlt(AutoAltMaker):
                         already_reco_sids.update(reco_sids[:6])
 
                         w.write(
-                            f"{userid},{self.alt_info['feature_public_code'].values[0]}{i + 1},{self.create_date},{reco_sids[:self.max_nb_reco]},"
+                            f"{userid},{self.alt_info['feature_public_code'].values[0]}{i + 1},{self.create_date},"
+                            f"{'|'.join(reco_sids[:self.max_nb_reco])},"
                             f"{combo_name},{self.alt_info['domain'].values[0]},1,"
                             f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 

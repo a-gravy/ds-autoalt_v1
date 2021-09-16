@@ -45,6 +45,7 @@ from datetime import date
 import pandas as pd
 from docopt import docopt
 import yaml
+from collections import defaultdict
 from autoalts.daily_top import DailyTop
 # from autoalts.toppick import TopPick
 from autoalts.new_arrival import NewArrival
@@ -96,13 +97,14 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
     if CFETs:
         logging.info(f"for PAGE:{page_public_code}, there are common FET:{CFETs} and \n {fet_score_dict}")
 
-    user_fets_dict = {}  # {userid: [FET]}
+    user_fets_dict = defaultdict(list)  # {userid: [FET]}
     for line in efficient_reading(feature_table_path):
         arr = line.split(",")
         if len(arr) < 2:
             logging.info(f"WRONG : {line}")
-        if 'JFET' in arr[1]:  # TODO: SFET
-            user_fets_dict[arr[0]] = user_fets_dict.setdefault(arr[0], []) + [arr[1]]
+        if 'JFET' in arr[1] and arr[1] not in user_fets_dict[arr[0]]:  # TODO: SFET
+            user_fets_dict[arr[0]] = user_fets_dict[arr[0]] + [arr[1]]
+            # user_fets_dict[arr[0]] = user_fets_dict.setdefault(arr[0], []) + [arr[1]]
     logging.info(f"read {feature_table_path} done")
 
     def fet_ranking(fet):
@@ -141,17 +143,18 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
     :param output_path:
     :return:
     """
-    target_users = []
+    target_users = set()
     if target_users_path:
         for line in efficient_reading(target_users_path):
-            target_users.append(line.rstrip())
+            target_users.add(line.rstrip())
         logging.info(f"AutoALTs are for {len(target_users)} target users, chotatatus ALTs are still for all users")
+
 
     feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
 
     for file in os.listdir(dir_path):
-        logging.info(f"processing {file}")
+        start_time = time.time()
         # define output convertion function based on input file format
 
         if 'CFET' in file:  # 自動生成ALTs
@@ -262,6 +265,7 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
 
         feature_table_writer.flush()
         logging.info(f"{file} : {linecnt} lines processed")
+        logging.info("takes {:.3f} sec".format(time.time() - start_time))
 
     feature_table_writer.close()
 

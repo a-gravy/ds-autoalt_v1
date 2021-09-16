@@ -21,6 +21,7 @@ import shutil
 import yaml
 import boto3
 import pickle
+import time
 from docopt import docopt
 
 logging.basicConfig(level=logging.INFO)
@@ -53,6 +54,7 @@ def batch(iterable, n=1):
     l = len(iterable)
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
+
 
 def load_model(path):
     return pickle.load(open(path, "rb"))
@@ -171,19 +173,21 @@ def get_files_from_s3(domain_name, **kwarg):
 
 def unzip_files_in_dir(dir_path):
     """
-    unzip all file and save them in the same diretory
+    unzip all file and save them in the same dir
 
     :param dir_path: str
     :return:
     """
     for file in os.listdir(dir_path):
         if file.endswith(".gz"):
+            start_t = time.time()
             logging.info(f"unzipping {file}")
             with gzip.open(os.path.join(dir_path, file), 'rb') as f_in:
                 name_without_gz = os.path.splitext(file)[0]
                 with open(os.path.join(dir_path, name_without_gz), 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
             os.remove(os.path.join(dir_path, file))
+            logging.info(f"{file} takes {time.time() - start_t} to unzip")
         else:
             logging.info(f"skip {file}")
 
