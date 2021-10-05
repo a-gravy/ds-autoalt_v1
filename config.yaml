@@ -9,8 +9,8 @@ s3_dir:
   alt_root: s3://unext-datascience/alts/
   ippan_sakuhin: s3://unext-datascience/alts/ippan_sakuhin/
   semiadult: s3://unext-datascience/alts/semiadult/
-  ippan_bpr_root: s3://unext-datascience-prod/jobs/ippanreco/
-  ippan_als_root: s3://unext-datascience-prod/jobs/collaborative/ippan/
+  model_root: s3://unext-datascience-prod/jobs/collaborative/ippan/
+  # jobs/collaborative/ippan/implicit_bpr.model.2021-10-03
   #####
   dim_autoalt.csv: s3://unext-datascience/alts/
   target_super.csv: s3://unext-datascience/alts/
@@ -29,6 +29,6 @@ s3_dir:
   pfid_8_users.csv: s3://unext-datascience/alts/
   pfid_9_users.csv: s3://unext-datascience/alts/
 
-  postplay_implicit.csv: s3://unext-datascience-prod/jobs/ippanreco/
+  postplay_ippan.csv: s3://unext-datascience-prod/jobs/autoalt/
   cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
   toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/

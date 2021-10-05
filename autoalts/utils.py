@@ -134,24 +134,10 @@ def get_files_from_s3(domain_name, **kwarg):
         file_name = os.path.basename(v)
 
         if 'model' in v:  # file name w/ DATE
-            if 'bpr' in v:  # implicit_bpr.model.2021-08-31
-                s3_dir_path = config['s3_dir']['ippan_bpr_root']
-            elif 'als' in v:  # als_model.2021-08-29
-                s3_dir_path = config['s3_dir']['ippan_als_root']
-            else:
-                raise Exception(f"wrong model path:{v}")
+            s3_dir_path = config['s3_dir']['model_root']
 
             bucket, key = split_s3_path(s3_dir_path)
             print(f"downloading {bucket} {key}/{file_name}")
-            with open(f"data/{file_name}", 'wb') as f:
-                client.download_fileobj(bucket, f"{key}/{file_name}", f)
-        elif 'postplay_implicit' in v:
-            s3_dir_path = config['s3_dir']['ippan_bpr_root']
-            bucket, key = split_s3_path(s3_dir_path)
-
-            file_name = f'{file_name}.gz'  # the file in s3 is zipped
-            print(f"downloading {bucket} {key}/{file_name}")
-
             with open(f"data/{file_name}", 'wb') as f:
                 client.download_fileobj(bucket, f"{key}/{file_name}", f)
         elif v.endswith(".csv"):
