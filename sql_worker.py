@@ -189,7 +189,7 @@ def get_sth_postegres():
 
 
 def get_sth_cmsdb():
-    task = "person_name_id_mapping"  # f"exclusive_genre"  # workspace/alt/coldstart/execlusive.sql
+    task = "item_features"  # f"exclusive_genre"  # workspace/alt/coldstart/execlusive.sql
     in_sql = get_filepath_content(str(Path(f"workspace/alt/ippan_sakuhin/cmsdb/{task}.sql")))
     query = mysql(cmsdb)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)
@@ -251,8 +251,8 @@ def get_sth_presto():
 
 def main():
     # get_expire_soon()
-    get_sth_postegres()
-    # get_sth_cmsdb()
+    # get_sth_postegres()
+    get_sth_cmsdb()
 
     """
     kwargs={

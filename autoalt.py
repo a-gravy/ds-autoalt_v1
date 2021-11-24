@@ -123,6 +123,7 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
     for uploading to Cassandra
 
     output: feature_table.csv @ config['header']['feature_table']
+    user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt,feature_public_start_datetime,feature_public_end_datetime
 
     input format: 調達部's header are different, but format is the same;  coldstart format is the same
     [ippan]
@@ -187,24 +188,37 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                     return f"{arr[0]},{arr[1]},{arr[2]},{arr[3]},,ippan_sakuhin,{arr[6]},{arr[4]},{arr[5]}\n"
 
             output_func = choutatsu_format
-        elif 'choutatsu_coldstart' in file:
+        elif 'coldstart_features' in file:
             """
-            choutatsu FETs from reco_ippan_choutatsu_coldstart_features.csv
-            format: user_multi_account_id,feature_public_code,sakuhin_codes,feature_score,feature_ranking,genre_tag_code,
-            platform,film_rating_order,feature_public_flg,feature_display_flg,feature_home_display_flg,
-            feature_public_start_datetime,feature_public_end_datetime,create_date
+            reco_ippan_coldstart_features.csv
+            
+            input format: 
+            user_multi_account_id,feature_public_code,sakuhin_codes,create_date,domain,
+            autoalt,feature_title,feature_public_start_datetime,feature_public_end_datetime
+            
+            return: 
+            logged-user-coldstart/non-logged-user-coldstart, feature_public_code, create_date, sakuhin_codes, ..., 
+            feature_public_start_datetime,feature_public_end_datetime 
             """
+            today = date.today().strftime("%Y%m%d")  # e.g. 20200915
             def coldstart_format(line):
                 arr = line.rstrip().split(",")
+                # one line for logged-user-coldstart
+                # one line for non-logged-user-coldstart
+                feature_title = ''  # don't save title info
+                domain = 'ippan_sakuhin'
+                autoalt = 0
+                return f'coldstart,{arr[1]},{today},{arr[2]},{feature_title},{domain},{autoalt},{arr[-2]},{arr[-1]}\n' \
+                       f'non-logged-in-coldstart,{arr[1]},{today},{arr[2]},{feature_title},{domain},{autoalt},{arr[-2]},{arr[-1]}\n'
+                # TODO: rm after stable
+                """
                 if "semiadult" in file:
                     return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
                 elif "ippan" in file:
-                    # one line for logged-user-coldstart
-                    # one line for non-logged-user-coldstart
-                    # don't save title info
+                    
                     return f'logged-user-coldstart,{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n' \
                         f'non-logged-user-coldstart,{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
-
+                """
             output_func = coldstart_format
         else:  #if file == 'dim_autoalt.csv' or file == "target_users.csv":
             logging.info(f'skip {file}')

@@ -1,5 +1,4 @@
- # current prod 1.0.5
-VERSION ?= 1.0.6
+VERSION ?= 1.0.8
 NAME ?= altmaker
 
 REPOSITORY ?= harbor.unext.jp/datascience-dev
@@ -11,6 +10,7 @@ IMAGE_LATEST ?= $(AWS_REPOSITORY)/ds-$(NAME):latest
 
 .EXPORT_ALL_VARIABLES:
 .PHONY: build clean
+
 
 
 build:  build_docker
