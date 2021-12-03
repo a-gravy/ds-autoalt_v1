@@ -46,6 +46,9 @@ class AutoAltMaker(object):
         :param SIDs:
         :return:
         """
+        if not SIDs:
+            logging.debug("SIDs is empty")
+            return []
         filtered_SIDs = [SID for SID in SIDs if SID not in self.blacklist]
         if len(SIDs) - len(filtered_SIDs) != 0:
             logging.debug(f"[black_list_filtering]: from {len(SIDs)} to {len(filtered_SIDs)}")

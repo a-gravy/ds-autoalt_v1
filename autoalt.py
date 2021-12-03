@@ -44,6 +44,7 @@ import time
 from datetime import date
 import pandas as pd
 from docopt import docopt
+import tqdm
 import yaml
 from collections import defaultdict
 from autoalts.daily_top import DailyTop
@@ -117,7 +118,7 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
             w.write(f"{user_id},{'|'.join(sorted(unsorted_fets, key=fet_ranking, reverse=True))}\n")
 
 
-def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target_users_path=None):
+def allocate_fets_for_pg(dir_path, output_path="feature_table.csv", target_users_path=None):
     """
     allocate all feature files under dir_path into one single file with uniform format
     for uploading to Cassandra
@@ -149,7 +150,6 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
         for line in efficient_reading(target_users_path):
             target_users.add(line.rstrip())
         logging.info(f"AutoALTs are for {len(target_users)} target users, chotatatus ALTs are still for all users")
-
 
     feature_table_writer = open(output_path, 'w')
     feature_table_writer.write(config['header']['feature_table'])
@@ -210,48 +210,10 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
                 autoalt = 0
                 return f'coldstart,{arr[1]},{today},{arr[2]},{feature_title},{domain},{autoalt},{arr[-2]},{arr[-1]}\n' \
                        f'non-logged-in-coldstart,{arr[1]},{today},{arr[2]},{feature_title},{domain},{autoalt},{arr[-2]},{arr[-1]}\n'
-                # TODO: rm after stable
-                """
-                if "semiadult" in file:
-                    return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
-                elif "ippan" in file:
-                    
-                    return f'logged-user-coldstart,{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n' \
-                        f'non-logged-user-coldstart,{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
-                """
             output_func = coldstart_format
         else:  #if file == 'dim_autoalt.csv' or file == "target_users.csv":
             logging.info(f'skip {file}')
             continue
-        '''
-        elif 'coldstart' in file:
-            # choutatsu FETs from reco_ippan_choutatsu_coldstart_features.csv
-            # format: user_multi_account_id,feature_public_code,sakuhin_codes,feature_score,feature_ranking,genre_tag_code,
-            # platform,film_rating_order,feature_public_flg,feature_display_flg,feature_home_display_flg,
-            # feature_public_start_datetime,feature_public_end_datetime,create_date
-            if "choutatsu" in file:
-                def coldstart_format(line):
-                    arr = line.rstrip().split(",")
-                    if "semiadult" in file:
-                        return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,semiadult,0,{arr[-3]},{arr[-2]}\n'
-                    elif "ippan" in file:
-                        return f'{arr[0]},{arr[1]},{arr[-1]},{arr[2]},,ippan_sakuhin,0,{arr[-3]},{arr[-2]}\n'
-            # toppick FETs from autoalt_toppick_osusume_only -> autoalt_coldstart_toppick_osusume_only.csv
-            # format: user_multi_account_id,block,create_date,feature_name,sakuhin_codes,sub_text,score
-            #elif "toppick" in file:  TODO
-            #    logging.info("coldstart & toppick")
-            #    def coldstart_format(line):
-            #        arr = line.rstrip().split(",")
-            #        return f"{arr[0]},JFET000001,{arr[2]},{arr[4]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n"
-            else:
-                raise Exception("COLDSTART FILE ERROR")
-            output_func = coldstart_format
-        elif 'toppick' in file:
-            def toppick_format(line):
-                arr = line.rstrip().split(',')
-                return f'{arr[0]},JFET000001,{arr[-1]},{arr[3]},あなたへのおすすめ,ippan_sakuhin,1,2020-01-01 00:00:00,2029-12-31 23:59:59\n'
-            output_func = toppick_format
-        '''
 
         linecnt = 0
         for line in efficient_reading(os.path.join(dir_path, file)):
@@ -263,17 +225,6 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
             elif output_str:
                 feature_table_writer.write(output_str)
                 linecnt += 1
-
-                # check function
-                '''
-                arr = output_str.split(",")
-                user_sids = existing_user_fets.get(arr[0],[])
-                if arr[1] in user_sids:
-                    logging.info(f"ERROR, {arr[0]} got two same FETs:{arr[1]}, current processing:{file}")
-                    raise Exception("ERROR FOUND")
-                else:
-                    existing_user_fets[arr[0]] = user_sids + [arr[1]]
-                '''
             else:
                 logging.info(f"{file}:{line} WRONG FORMAT")
 
@@ -285,6 +236,58 @@ def allocate_fets_to_fet_table(dir_path, output_path="feature_table.csv", target
 
     logging.info("feature_table.csv allocation done")
 
+def check_fets(reco_path, blacklist_path, allow_blackSIDs=False):
+    """
+    override, since the reco format is different
+    """
+    logging.info("start checking FETs")
+    blacklist = set()
+    with open(blacklist_path, "r") as r:
+        while True:
+            line = r.readline()
+            if line:
+                blacklist.add(line.rstrip())
+            else:
+                break
+    logging.info(f"{len(blacklist)} blacklist SIDs load")
+
+    coldstart_alt_cnt = 0
+    non_login_coldstart_alt_cnt = 0
+
+    # user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt
+    line_counter = 0
+    for line in tqdm.tqdm(efficient_reading(reco_path), smoothing=0, mininterval=1.0):
+        line_counter += 1
+        unique_sid_pool = set()
+        user_id = line.split(",")[0]
+        SIDs = line.split(",")[3].split("|")
+
+        if user_id == 'coldstart':
+            coldstart_alt_cnt += 1
+        elif user_id == 'non-logged-in-coldstart':
+            non_login_coldstart_alt_cnt += 1
+
+        for sid in SIDs:
+            assert sid, f"[check_reco]: {reco_path} has a line [{line.rstrip()}] which has no SIDs"
+
+            assert not allow_blackSIDs or sid in blacklist, f"[black_list] {sid} in {line}"
+
+            assert sid not in unique_sid_pool, f"[duplicates] duplicated {sid}"
+            unique_sid_pool.add(sid)
+
+    logging.info(f"{reco_path} got {line_counter} lines")
+    logging.info("[format check] pass")
+    logging.info("[Inside ALT duplicates check] pass")
+
+    if allow_blackSIDs:
+        pass
+    else:
+        logging.info(f"[blacklist check] pass")
+
+    logging.info(f"coldstart has {coldstart_alt_cnt}  ALTs, pass")
+    logging.info(f"non_login_coldstart has {non_login_coldstart_alt_cnt}  ALTs, pass")
+    assert coldstart_alt_cnt > 0, "coldstart_alt_cnt should > 0"
+    assert non_login_coldstart_alt_cnt > 0, "non_login_coldstart_alt_cnt should > 0"
 
 def check_reco(reco_path, blacklist_path, allow_blackSIDs=False):
     """
@@ -473,11 +476,14 @@ def main():
         alt.make_alt(**kwargs)
 
     elif arguments['allocate_FETs']:
-        allocate_fets_to_fet_table(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))
+        allocate_fets_for_pg(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))
+        # TODO
+        # check_fets(arguments['--output'], "data/blacklist_sids.csv", allow_blackSIDs=False)
     elif arguments['allocate_FETs_page']:
         # python autoalt.py allocate_FETs_page MAINPAGE --input data/autoalt_ippan_sakuhin_features.csv
         allocate_fets_to_page_generation(arguments['--input'], arguments["<feature_public_code>"])
     elif arguments['check_reco']:
+        # python autoalt.py check_reco --input JFET000006.csv --blacklist data/blacklist_sids.csv
         check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
     elif arguments['demo_candidates']:
         make_demo_candidates(feature_table_path=arguments['--input'], output_path=arguments['--output'])

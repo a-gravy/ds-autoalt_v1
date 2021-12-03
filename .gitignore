@@ -16,7 +16,6 @@ JFET000006/
 
 # Distribution / packaging
 .Python
-*.ipynb
 build/
 tmp/
 check/

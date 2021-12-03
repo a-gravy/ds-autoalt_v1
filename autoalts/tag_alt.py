@@ -415,7 +415,7 @@ class TagAlt(AutoAltMaker):
                     person = self.person_meta_dict.get(arr[1], None)
                     if person:
                         combo_name = self.alt_naming(arr[0], **{arr[0]: person.person_name})
-                        pool_SIDs = self.black_list_filtering(person.sids)
+                        pool_SIDs = person.sids
                     else:
                         continue
                 else:
@@ -424,6 +424,7 @@ class TagAlt(AutoAltMaker):
             else:
                 raise Exception(f"alt_combo wrong in {alt_combo}")
 
+            pool_SIDs = self.black_list_filtering(pool_SIDs)
             if not pool_SIDs:  # discard combo w/ < self.min_nb_reco
                 logging.debug(f"discard {alt_combo} due to no combo_sid_pool")
                 continue
