@@ -445,6 +445,7 @@ def main():
             alt_func = Popular
 
         elif arguments['tag']:
+            # the user history data used here is userID, SID|SID|SID ... , different format from dscollab
             kwargs = {
                 "target_users_path":arguments.get("--target_users", None),
                 "cast_info_path":"data/cast_info.csv",

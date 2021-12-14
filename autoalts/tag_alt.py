@@ -9,7 +9,7 @@ import plyvel
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
 # from bpr.implicit_recommender import rank
-from utils import efficient_reading, rank
+from utils import efficient_reading
 from ranker import Ranker
 
 logger = logging.getLogger(__name__)
@@ -256,6 +256,12 @@ class TagAlt(AutoAltMaker):
             raise Exception(f"WRONG COMBO {combo}")
 
     def query_sid_pool(self, query, already_reco_sids=None):
+        """
+
+        :param query: e.g. ["アニメ"]
+        :param already_reco_sids:
+        :return:
+        """
         combo_sids = self.sakuhin_query_table.do_query(query)
         combo_sids = set(combo_sids)
         combo_sids = self.black_list_filtering(combo_sids)
