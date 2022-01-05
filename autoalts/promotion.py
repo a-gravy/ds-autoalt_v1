@@ -93,11 +93,16 @@ def rizin_page(promotion_ALT, target_users):
             arr[3] = arr[3].replace(f"{promotion_ALT}|", "")
             arr[3] = f"{promotion_ALT}|{arr[3]}"
             output.write(",".join(arr))
-        elif arr[1] == "MAINPAGE" and G2_active:
+        elif arr[0] == "coldstart" and arr[1] == "MAINPAGE" and not G1_active:
+            logging.info(f"coldstart = {line[:100]}")
+            output.write(line)
+        elif arr[0] != "coldstart" and arr[1] == "MAINPAGE" and G2_active:
             if arr[0] in target_users:
                 arr[3] = arr[3].replace(f"{promotion_ALT}|", "")
                 arr[3] = f"{promotion_ALT}|{arr[3]}"
                 output.write(",".join(arr))
+            else:
+                output.write(line)
         else:
             output.write(line)
 
@@ -106,6 +111,7 @@ def main():
     arguments = docopt(__doc__, version='0.9.0')
     logging.info(arguments)
 
+    logging.info("version 1.1.2")
     G1_time["start"] = arguments['<g1s>']
     G1_time["end"] = arguments['<g1e>']
     G2_time["start"] = arguments['<g2s>']
