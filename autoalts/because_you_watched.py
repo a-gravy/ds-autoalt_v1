@@ -208,8 +208,7 @@ class BecauseYouWatched(AutoAltMaker):
                                         f"{title},{self.alt_info['domain'].values[0]},1,"
                                         f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
                                 nb_byw_users += 1
-                                # TODO: for MVP, we only make one BYW FET for one user
-                                break
+                                break  # in v1, we only make one BYW(using last) FET for one user
                             else:
                                 logging.warning(f"{watched_SID} can not find a mapping title")
                     else:
