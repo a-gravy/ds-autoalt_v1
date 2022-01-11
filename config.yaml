@@ -13,6 +13,9 @@ s3_dir:
   # jobs/collaborative/ippan/implicit_bpr.model.2021-10-03
   #####
   dim_autoalt.csv: s3://unext-datascience/alts/
+  control_users.csv: s3://unext-datascience/alts/
+  treatment_a_users.csv: s3://unext-datascience/alts/
+  treatment_b_users.csv: s3://unext-datascience/alts/
   target_super.csv: s3://unext-datascience/alts/
   target_users.csv: s3://unext-datascience/alts/
   superusers.csv: s3://unext-datascience/alts/

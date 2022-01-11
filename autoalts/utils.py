@@ -6,6 +6,7 @@ Usage:
     utils.py demo_candidates --input=PATH
     utils.py pfid_div --input=PATH
     utils.py target_users --input=PATH [ --superusers=PATH ] [<nb>...]
+    utils.py tmp --input=PATH
 
 Options:
     -h --help Show this screen
@@ -28,6 +29,19 @@ logging.basicConfig(level=logging.INFO)
 
 with open("config.yaml") as f:
     config = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+
+def tmp_processing(byw_path):
+    """
+    tmp remove the BYW of PM017326116 and SID0029406
+    :return:
+    """
+    with open("JFET000002_r.csv", "w") as w:
+        for line in efficient_reading(byw_path):
+            if 'PM017326116' in line and '過激派オペラ' in line:
+                logging.info(f"remove - {line}")
+            else:
+                w.write(line)
 
 
 def efficient_reading(input_path, with_header=True, header_format=None):
@@ -326,6 +340,8 @@ def main():
         # superusers only = python autoalts/utils.py target_users --superusers data/superusers.csv   --input data/user_pfid.csv 1 2 3
         make_target_users(pfid_path=arguments['--input'], target_pfid=arguments['<nb>'],
                           superusers_path=arguments["--superusers"])
+    elif arguments['tmp']:
+        tmp_processing(arguments['--input'])
     else:
         raise Exception("Unimplemented ERROR")
 

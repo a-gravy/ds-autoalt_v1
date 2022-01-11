@@ -59,7 +59,7 @@ class Trending(AutoAltMaker):
         already_reco_output = open("already_reco_SIDs.csv", "w")
         already_reco_output.write("userid,sid_list\n")
 
-        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
             w.write(self.config['header']['feature_table'])
             #for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs, filter_already_liked_items=True, batch_size=10000):
             for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,

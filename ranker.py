@@ -9,6 +9,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Ranker:
+    """
+    more detail of dscollaborative
+    https://github.com/u-next/ds-collaborative-modelling/blob/add_pytorch_mf/src/dscollab/src/main/python/dscollaborative/recommender.py
+    """
     def __init__(self, model_path):
         self.collab_model = ImplicitModel()
         self.collab_model.load_model(model_path)
