@@ -14,17 +14,9 @@ Options:
     --model PATH          File path location of the trained model
 """
 import os, sys, tempfile, logging, time
-import csv
-from datetime import date
 from dscollaborative.recommender import UserItemRatingMatrix, ImplicitModel, Features, Cleaner, Duplicates
-from dscollaborative.recommender import reranker_x_and_y, reranker_x_only
-from dstools.utils import normalize_path, save_list_to_file, file_to_list
-import json
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from scipy import sparse
-import scipy
 import pickle
 from docopt import docopt
 from tqdm import tqdm
