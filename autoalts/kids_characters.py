@@ -18,6 +18,7 @@ from dscollaborative.recommender import UserItemRatingMatrix, ImplicitModel, Fea
 import numpy as np
 import pandas as pd
 import pickle
+import datetime
 from docopt import docopt
 from tqdm import tqdm
 from utils import batch
@@ -152,10 +153,11 @@ def make_characters_alt(model_path, top_N):
     model = Ranker(model_path)
     user_list, recos = model.rank_characters(character_sids_dict, target_user=None, seen_SID_weight=True,
                                              show_progress=True)
-
+    today = datetime.date.today().strftime("%Y%m%d")
     with open("kids_characters_ALT.csv", "w") as w:
+        w.write("user_multi_account_id,character_codes,create_date\n")
         for user_id, reco in zip(user_list, recos):
-            w.write(f"{user_id},{'|'.join(reco[:top_N])}\n")
+            w.write(f"{user_id},{'|'.join(reco[:top_N])},{today}\n")
 
     logging.info("done, output at kids_characters_ALT.csv")
 
