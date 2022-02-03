@@ -4,6 +4,7 @@ kids_characters
 Usage:
     kids_characters.py data_processing --input=PATH
     kids_characters.py make_alt --model=PATH  <top_N>
+    kids_characters.py make_coldstart --input=PATH
 
 
 Options:
@@ -19,9 +20,11 @@ import numpy as np
 import pandas as pd
 import pickle
 import datetime
+from collections import defaultdict
+import operator
 from docopt import docopt
 from tqdm import tqdm
-from utils import batch
+from utils import batch, efficient_reading
 
 
 logging.basicConfig(level=logging.INFO)
@@ -162,6 +165,36 @@ def make_characters_alt(model_path, top_N):
     logging.info("done, output at kids_characters_ALT.csv")
 
 
+def make_coldstart_characters_alt(daily_top_path, output="kids_characters_ALT.csv"):
+    with open("kids_character_id_sakuhins.pkl", "rb") as fp:   #Pickling
+        character_id_sids_dict = pickle.load(fp)
+
+    invered_id_character_id_sids_dict = dict()
+    for k_id, sids in character_id_sids_dict.items():
+        for sid in sids:
+            invered_id_character_id_sids_dict[sid] = k_id
+
+    # rank characters by yesterday's popularity
+    character_popularity_cnt = defaultdict(int)
+    for line in efficient_reading(daily_top_path):
+        arr = line.split(",")
+        sid = arr[0]
+        if sid not in invered_id_character_id_sids_dict:
+            continue
+
+        popularity = arr[2]
+        character_popularity_cnt[invered_id_character_id_sids_dict[sid]] += int(popularity)
+
+    coldstart = [x for x,_ in sorted(character_popularity_cnt.items(), key=operator.itemgetter(1), reverse=True)]
+    coldstart = coldstart + list(set(character_id_sids_dict.keys()) - set(coldstart))
+
+    today = datetime.date.today().strftime("%Y%m%d")
+
+    with open(output, "a") as a:
+        a.write(f"coldstart,{'|'.join(coldstart)},{today}\n")
+
+    logging.info("done, append to kids_characters_ALT.csv")
+
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='0.9.0')
     logging.info(arguments)
@@ -170,6 +203,8 @@ if __name__ == '__main__':
         data_processing(arguments["--input"])
     elif arguments['make_alt']:
         make_characters_alt(arguments["--model"], int(arguments["<top_N>"]))
+    elif arguments['make_coldstart']:
+        make_coldstart_characters_alt(arguments["--input"])
     else:
         raise "Unimplementation Error"
 
