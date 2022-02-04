@@ -24,7 +24,7 @@ from collections import defaultdict
 import operator
 from docopt import docopt
 from tqdm import tqdm
-from utils import batch, efficient_reading
+from autoalts.utils import batch, efficient_reading
 
 
 logging.basicConfig(level=logging.INFO)

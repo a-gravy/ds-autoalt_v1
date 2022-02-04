@@ -1,13 +1,14 @@
 import logging
+import operator
 from autoalts.autoalt_maker import AutoAltMaker
-from autoalts.utils import efficient_reading
+from utils import efficient_reading
 from ranker import Ranker
 
 logging.basicConfig(level=logging.INFO)
 
 
-class Trending(AutoAltMaker):
-    def __init__(self, **kwargs):
+class Exclusives(AutoAltMaker):
+    def __init__(self,**kwargs):
         super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
                          kwargs["max_nb_reco"], kwargs["min_nb_reco"])
         self.target_users = None
@@ -17,9 +18,9 @@ class Trending(AutoAltMaker):
         self.batch_size = int(kwargs["batch_size"])
 
     def make_alt(self, **kwargs):
-        logging.info(f"making {self.alt_info} using model:{kwargs['bpr_model_path']}")
+        logging.info(f"making {self.alt_info} using model:{kwargs['model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(kwargs['trending_path'], kwargs['toppick_path'], kwargs['bpr_model_path'])
+            self.ippan_sakuhin(kwargs['pool_path'], kwargs['model_path'])
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -27,26 +28,15 @@ class Trending(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
-    def ippan_sakuhin(self, trending_path, toppick_path, model_path):
+    def ippan_sakuhin(self, pool_path, model_path):
 
         ranker = Ranker(model_path=model_path)
 
         pool_SIDs = set()
-        # "episode_code,SID,display_name,main_genre_code,nb_watch"
-        for line in efficient_reading(trending_path, True, "today_top_rank,sakuhin_public_code,sakuhin_name,uu,zenkai_uu,trend_perc"):
-            arr = line.rstrip().split(",")
-            if float(arr[-1]) < 1.0:
-                break
-            pool_SIDs.add(line.split(",")[1])
+        for line in efficient_reading(pool_path, True):
+            pool_SIDs.add(line.split(",")[0].replace('"', ''))
 
         logging.info(f"nb of SID in pool = {len(pool_SIDs)}")
-
-        toppick_dict = {}  # user:list(SID)
-        for line in efficient_reading(toppick_path, True, "user_multi_account_id,platform,block,sakuhin_codes,feature_name,sub_text,score,create_date"):
-            arr = line.split(",")
-            # Only remove top 5 SIDs, since user may only see the top 5
-            toppick_dict[arr[0]] = arr[3].split("|")[:5]
-
         pool_SIDs = self.rm_series(pool_SIDs)
         logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
 
@@ -55,13 +45,8 @@ class Trending(AutoAltMaker):
         nb_all_users = 0
         nb_output_users = 0
 
-        # for popular, record the
-        already_reco_output = open("already_reco_SIDs.csv", "w")
-        already_reco_output.write("userid,sid_list\n")
-
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
             w.write(self.config['header']['feature_table'])
-            #for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs, filter_already_liked_items=True, batch_size=10000):
             for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
                                                 filter_already_liked_items=True, batch_size=self.batch_size):
                 nb_all_users += 1
@@ -69,17 +54,12 @@ class Trending(AutoAltMaker):
                     logging.info(
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
-                toppick_sids = toppick_dict.get(userid, set())
-                if toppick_sids:
-                    toppick_sids = set(toppick_sids)
-                    sid_list = [sid for sid in sid_list if sid not in toppick_sids]
-
-                reco = self.black_list_filtering(sid_list)
+                # remove blacklist
+                rm_sids = self.blacklist
+                reco = [SID for SID in sid_list if SID not in rm_sids]
 
                 if len(reco) < self.min_nb_reco:
                     continue
-
-                already_reco_output.write(f"{userid},{'|'.join(sid_list[:5] + list(toppick_sids))}\n")  # rm top 5 only
 
                 w.write(
                     f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
@@ -87,10 +67,6 @@ class Trending(AutoAltMaker):
                     f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
                 nb_output_users += 1
 
-        logging.info(
-            "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
-                                                                                     nb_output_users / nb_all_users * 100))
-        already_reco_output.close()
-
-
-
+            logging.info(
+                "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
+                                                                                         nb_output_users / nb_all_users * 100))

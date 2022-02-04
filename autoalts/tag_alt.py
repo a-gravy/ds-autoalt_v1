@@ -9,7 +9,7 @@ import plyvel
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
 # from bpr.implicit_recommender import rank
-from utils import efficient_reading
+from autoalts.utils import efficient_reading
 from ranker import Ranker
 
 logger = logging.getLogger(__name__)

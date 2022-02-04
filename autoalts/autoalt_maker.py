@@ -1,7 +1,7 @@
 import os, logging
 import yaml
 import pickle
-from utils import efficient_reading
+from autoalts.utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
 

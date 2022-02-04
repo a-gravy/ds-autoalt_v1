@@ -23,7 +23,7 @@ import logging
 import time
 import operator
 from autoalts.autoalt_maker import AutoAltMaker
-from utils import efficient_reading
+from autoalts.utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
 

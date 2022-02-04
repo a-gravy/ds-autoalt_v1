@@ -1,7 +1,7 @@
 import logging
 import operator
 from autoalts.autoalt_maker import AutoAltMaker
-from utils import efficient_reading
+from autoalts.utils import efficient_reading
 from bpr.implicit_recommender import rerank
 from ranker import Ranker
 
@@ -21,7 +21,7 @@ class Popular(AutoAltMaker):
     def make_alt(self, **kwargs):
         logging.info(f"making {self.alt_info} using model:{kwargs['bpr_model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(kwargs['popular_sids_path'], kwargs['already_reco_path'], kwargs['bpr_model_path'])
+            self.ippan_sakuhin(kwargs['pool_path'], kwargs['already_reco_path'], kwargs['bpr_model_path'])
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":

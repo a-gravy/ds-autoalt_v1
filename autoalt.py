@@ -7,7 +7,8 @@ Usage:
     autoalt.py trending <feature_public_code> --model=PATH --trending=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --batch_size=<bs>]
     autoalt.py popular <feature_public_code> --model=PATH --popular=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py toppick <feature_public_code> --model=PATH [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
+    autoalt.py exclusives <feature_public_code> --model=PATH --pool_path=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
     autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
@@ -34,6 +35,7 @@ Options:
     --target_items PATH   target items to recommend
     --series PATH         path of SID-series_id file
     --sid_name PATH       path of SID-name file
+    --pool_path PATH      path of SID pool file
 
 
 """
@@ -54,9 +56,9 @@ from autoalts.because_you_watched import BecauseYouWatched
 from autoalts.trending import Trending
 from autoalts.popular import Popular
 from autoalts.tag_alt import TagAlt
+from autoalts.exclusives import Exclusives
 from autoalts.coldstart import ColdStartExclusive
-from autoalts.utils import make_demo_candidates, toppick_rm_series
-from utils import efficient_reading
+from autoalts.utils import make_demo_candidates, toppick_rm_series, efficient_reading
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
@@ -349,7 +351,7 @@ def main():
     today = date.today().strftime("%Y%m%d")  # e.g. 20200915
 
     if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments["trending"],
-            arguments["popular"], arguments['coldstart'], arguments['tag']]):
+            arguments["popular"], arguments['coldstart'], arguments['tag'], arguments['exclusives']]):
 
         # at first, read dim_autoalt.csv
         get_files_from_s3(domain_name="", **{'':"data/dim_autoalt.csv"})
@@ -436,7 +438,7 @@ def main():
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
-                'popular_sids_path': arguments["--popular"],
+                'pool_path': arguments["--popular"],
                 'already_reco_path': arguments["--already_reco"],
                 'bpr_model_path': arguments["--model"],
                 'batch_size': arguments["--batch_size"]
@@ -460,7 +462,17 @@ def main():
             }
             kwargs.update(basic_kwarg)
             alt_func = TagAlt
-
+        elif arguments['exclusives']:
+            # autoalt.py exclusives JFET000007 --model=PATH --pool_path=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+            kwargs = {
+                'target_users_path': arguments.get('--target_users', None),
+                # below are for alt.make_alt()
+                'pool_path': arguments["--pool_path"],
+                'model_path': arguments["--model"],
+                'batch_size': arguments["--batch_size"]
+            }
+            kwargs.update(basic_kwarg)
+            alt_func = Exclusives
         elif arguments['coldstart']:
             alt = ColdStartExclusive(alt_info, create_date=today)
             alt.make_alt(input=arguments["--input"])
