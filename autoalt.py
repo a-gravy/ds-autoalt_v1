@@ -469,7 +469,8 @@ def main():
                 # below are for alt.make_alt()
                 'pool_path': arguments["--pool_path"],
                 'model_path': arguments["--model"],
-                'batch_size': arguments["--batch_size"]
+                'batch_size': arguments["--batch_size"],
+                'MAINPAGE_top_alts_path': "data/MAINPAGE_top_alts.csv"
             }
             kwargs.update(basic_kwarg)
             alt_func = Exclusives
