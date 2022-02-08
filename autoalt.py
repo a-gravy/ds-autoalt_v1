@@ -425,7 +425,7 @@ def main():
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
-                'trending_path': arguments["--trending"],
+                'pool_path': arguments["--trending"],
                 'toppick_path': arguments["--toppick"],
                 'bpr_model_path': arguments["--model"],
                 'batch_size': arguments["--batch_size"]

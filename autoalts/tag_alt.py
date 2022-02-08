@@ -396,7 +396,7 @@ class TagAlt(AutoAltMaker):
                 user_profiling.add(tag_index_list[index_tag], user_profiling_vector[index_tag],
                                    self.type_set, self.genre_set, self.nation_set)
 
-            # -> {nation+genre: (user_id, ALT_name)}  似乎越多越好
+            # -> {nation+genre: (user_id, ALT_name)}
             for i, alt_combo in enumerate(self.alt_combos(user_profiling)):
                 combo_user_dict[alt_combo].append(userid)
 

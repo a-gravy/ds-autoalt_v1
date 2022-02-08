@@ -19,7 +19,7 @@ class Trending(AutoAltMaker):
     def make_alt(self, **kwargs):
         logging.info(f"making {self.alt_info} using model:{kwargs['bpr_model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(kwargs['trending_path'], kwargs['toppick_path'], kwargs['bpr_model_path'])
+            self.ippan_sakuhin(kwargs['pool_path'], kwargs['toppick_path'], kwargs['bpr_model_path'])
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
