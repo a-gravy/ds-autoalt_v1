@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 class Trending(AutoAltMaker):
     def __init__(self, **kwargs):
         super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
-                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
+                         kwargs["record_path"], kwargs["max_nb_reco"], kwargs["min_nb_reco"])
         self.target_users = None
         if kwargs['target_users_path']:
             self.target_users = self.read_target_users(kwargs['target_users_path'])
@@ -17,9 +17,9 @@ class Trending(AutoAltMaker):
         self.batch_size = int(kwargs["batch_size"])
 
     def make_alt(self, **kwargs):
-        logging.info(f"making {self.alt_info} using model:{kwargs['bpr_model_path']}")
+        logging.info(f"making {self.alt_info} using model:{kwargs['model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(kwargs['pool_path'], kwargs['toppick_path'], kwargs['bpr_model_path'])
+            self.ippan_sakuhin(kwargs['pool_path'], kwargs['model_path'])
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -27,7 +27,9 @@ class Trending(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
-    def ippan_sakuhin(self, trending_path, toppick_path, model_path):
+
+
+    def ippan_sakuhin(self, trending_path, model_path):
 
         ranker = Ranker(model_path=model_path)
 
@@ -40,13 +42,6 @@ class Trending(AutoAltMaker):
             pool_SIDs.add(line.split(",")[1])
 
         logging.info(f"nb of SID in pool = {len(pool_SIDs)}")
-
-        toppick_dict = {}  # user:list(SID)
-        for line in efficient_reading(toppick_path, True, "user_multi_account_id,platform,block,sakuhin_codes,feature_name,sub_text,score,create_date"):
-            arr = line.split(",")
-            # Only remove top 5 SIDs, since user may only see the top 5
-            toppick_dict[arr[0]] = arr[3].split("|")[:5]
-
         pool_SIDs = self.rm_series(pool_SIDs)
         logging.info(f"nb of SID in pool after removal same series = {len(pool_SIDs)}")
 
@@ -54,10 +49,6 @@ class Trending(AutoAltMaker):
 
         nb_all_users = 0
         nb_output_users = 0
-
-        # for popular, record the
-        already_reco_output = open("already_reco_SIDs.csv", "w")
-        already_reco_output.write("userid,sid_list\n")
 
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
             w.write(self.config['header']['feature_table'])
@@ -69,17 +60,11 @@ class Trending(AutoAltMaker):
                     logging.info(
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
-                toppick_sids = toppick_dict.get(userid, set())
-                if toppick_sids:
-                    toppick_sids = set(toppick_sids)
-                    sid_list = [sid for sid in sid_list if sid not in toppick_sids]
-
-                reco = self.black_list_filtering(sid_list)
+                # remove blacklist & sids got reco already
+                reco = self.remove_black_duplicates(userid, sid_list)
 
                 if len(reco) < self.min_nb_reco:
                     continue
-
-                already_reco_output.write(f"{userid},{'|'.join(sid_list[:5] + list(toppick_sids))}\n")  # rm top 5 only
 
                 w.write(
                     f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
@@ -90,7 +75,5 @@ class Trending(AutoAltMaker):
         logging.info(
             "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
                                                                                      nb_output_users / nb_all_users * 100))
-        already_reco_output.close()
-
-
+        self.reco_record.output_record()
 

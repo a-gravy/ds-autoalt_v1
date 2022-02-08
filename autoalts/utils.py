@@ -154,7 +154,7 @@ def get_files_from_s3(domain_name, **kwarg):
             print(f"downloading {bucket} {key}/{file_name}")
             with open(f"data/{file_name}", 'wb') as f:
                 client.download_fileobj(bucket, f"{key}/{file_name}", f)
-        elif v.endswith(".csv"):
+        elif v.endswith(".csv") or v.endswith(".pkl"):
             s3_dir_path = config['s3_dir'].get(file_name, None)
             if s3_dir_path:  # special s3 path
                 bucket, key = split_s3_path(s3_dir_path)
@@ -162,13 +162,11 @@ def get_files_from_s3(domain_name, **kwarg):
                 s3_dir_path = config['s3_dir'][domain_name]
                 bucket, key = split_s3_path(s3_dir_path)
 
-            file_name = f'{file_name}.gz'  # the file in s3 is zipped
+            file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
             print(f"downloading {bucket} {key}/{file_name}")
 
             with open(f"data/{file_name}", 'wb') as f:
                 client.download_fileobj(bucket, f"{key}/{file_name}", f)
-        else:
-            pass
 
 
 def unzip_files_in_dir(dir_path):

@@ -10,6 +10,7 @@ s3_dir:
   ippan_sakuhin: s3://unext-datascience/alts/ippan_sakuhin/
   semiadult: s3://unext-datascience/alts/semiadult/
   model_root: s3://unext-datascience-prod/jobs/collaborative/ippan/
+
   # jobs/collaborative/ippan/implicit_bpr.model.2021-10-03
   #####
   dim_autoalt.csv: s3://unext-datascience/alts/
@@ -37,3 +38,4 @@ s3_dir:
 
   cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
   toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/
+  recorecord.pkl : s3://unext-datascience/alts/ippan_sakuhin/

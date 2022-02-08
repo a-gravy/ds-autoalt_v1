@@ -4,10 +4,8 @@ Usage:
     autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py trending <feature_public_code> --model=PATH --trending=PATH --toppick=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --batch_size=<bs>]
-    autoalt.py popular <feature_public_code> --model=PATH --popular=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH --already_reco=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py exclusives <feature_public_code> --model=PATH --pool_path=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py (trending | popular | exclusives) <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
@@ -37,6 +35,13 @@ Options:
     --sid_name PATH       path of SID-name file
     --pool_path PATH      path of SID pool file
 
+
+"""
+
+"""
+    autoalt.py trending <feature_public_code> --model=PATH --pool=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --batch_size=<bs>]
+    autoalt.py popular <feature_public_code> --model=PATH --pool=PATH  [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py exclusives <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
 
 """
 import os
@@ -425,20 +430,20 @@ def main():
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
-                'pool_path': arguments["--trending"],
-                'toppick_path': arguments["--toppick"],
-                'bpr_model_path': arguments["--model"],
+                'pool_path': arguments["--pool_path"],
+                'record_path': arguments.get("--reco_record", None),
+                'model_path': arguments["--model"],
                 'batch_size': arguments["--batch_size"]
             }
             kwargs.update(basic_kwarg)
             alt_func = Trending
 
         elif arguments["popular"]:
-            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --popular data/popular.csv --already_reco data/already_reco_SIDs.csv --blacklist data/blacklist_sids.csv --target_users data/superusers.csv --series data/sid_series.csv
+            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --pool data/popular.csv --already_reco data/already_reco_SIDs.csv --blacklist data/blacklist_sids.csv --target_users data/superusers.csv --series data/sid_series.csv
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
-                'pool_path': arguments["--popular"],
+                'pool_path': arguments["--pool_path"],
                 'already_reco_path': arguments["--already_reco"],
                 'bpr_model_path': arguments["--model"],
                 'batch_size': arguments["--batch_size"]
@@ -463,11 +468,12 @@ def main():
             kwargs.update(basic_kwarg)
             alt_func = TagAlt
         elif arguments['exclusives']:
-            # autoalt.py exclusives JFET000007 --model=PATH --pool_path=PATH [--blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+            # python autoalt.py exclusives JFET000007 --model data/als_model.latest --pool_path data/exclusive_sakuhins.csv --blacklist data/blacklist_sids.csv --series data/sid_series.csv --target_users data/demo_users.csv --reco_record data/recorecord.pkl
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
                 'pool_path': arguments["--pool_path"],
+                'record_path': arguments.get("--reco_record", None),
                 'model_path': arguments["--model"],
                 'batch_size': arguments["--batch_size"],
                 'MAINPAGE_top_alts_path': "data/MAINPAGE_top_alts.csv"

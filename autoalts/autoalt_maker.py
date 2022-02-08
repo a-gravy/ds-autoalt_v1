@@ -2,12 +2,13 @@ import os, logging
 import yaml
 import pickle
 from autoalts.utils import efficient_reading
+from autoalts.duplicates_prevention import RecoRecord
 
 logging.basicConfig(level=logging.INFO)
 
 
 class AutoAltMaker(object):
-    def __init__(self, alt_info, create_date, blacklist_path=None, series_path=None, max_nb_reco=20, min_nb_reco=4):
+    def __init__(self, alt_info, create_date, blacklist_path=None, series_path=None, record_path=None, max_nb_reco=20, min_nb_reco=4):
         self.alt_info = alt_info
         self.create_date = create_date
         self.max_nb_reco = int(max_nb_reco)
@@ -38,7 +39,14 @@ class AutoAltMaker(object):
             self.series_dict = None
             logging.info("no series_dict -> won't remove series SIDs")
 
-        self.already_reco_dict = None
+        self.reco_record = RecoRecord(record_range=5)
+        if record_path:
+            self.reco_record.read_record(record_path)
+
+    def remove_black_duplicates(self, userid, sid_list):
+        # remove blacklist & sids got reco already with the same sid order
+        rm_sids = self.blacklist | self.reco_record.get_record(userid)
+        return [SID for SID in sid_list if SID not in rm_sids]
 
     def black_list_filtering(self, SIDs):
         """
@@ -138,7 +146,7 @@ class AutoAltMaker(object):
 
     def make_alt(self, **kwargs):
         raise Exception("Unimplemented Error")
-
+    '''
     def read_already_reco_sids(self, already_reco_path):
         self.already_reco_dict = {}  # format: userid, SID|SID|...
         for line in efficient_reading(already_reco_path, True, "userid,sid_list"):
@@ -152,5 +160,6 @@ class AutoAltMaker(object):
             return [sid for sid in sid_list if sid not in rm_sids]
         else:
             return sid_list
+    '''
 
 

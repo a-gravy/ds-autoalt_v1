@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 import operator
 from autoalts.autoalt_maker import AutoAltMaker
-from utils import efficient_reading
+from autoalts.utils import efficient_reading
 from ranker import Ranker
 import datetime
 import random
@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 class Exclusives(AutoAltMaker):
     def __init__(self,**kwargs):
         super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
-                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
+                         kwargs["record_path"], kwargs["max_nb_reco"], kwargs["min_nb_reco"])
         self.target_users = None
         if kwargs['target_users_path']:
             self.target_users = self.read_target_users(kwargs['target_users_path'])
@@ -119,9 +119,8 @@ class Exclusives(AutoAltMaker):
                     logging.info(
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
-                # remove blacklist
-                rm_sids = self.blacklist
-                reco = [SID for SID in sid_list if SID not in rm_sids][:self.max_nb_reco]
+                # remove blacklist & sids got reco already
+                reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
                 new_arrivals_r = [x for x in new_arrivals if x not in reco]
 
                 # random calculate positions for new arrival
@@ -135,6 +134,8 @@ class Exclusives(AutoAltMaker):
 
                 if len(reco) < self.min_nb_reco:
                     continue
+                else:
+                    self.reco_record.update_record(userid, sids=reco)
 
                 w.write(
                     f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
@@ -145,6 +146,9 @@ class Exclusives(AutoAltMaker):
             logging.info(
                 "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
                                                                                          nb_output_users / nb_all_users * 100))
+        self.reco_record.output_record()
+
+
     def make_coldstart(self, pool_path, MAINPAGE_top_alts_path):
         # TODO: also remove duplicates in daily top
         df = pd.read_csv(pool_path)
