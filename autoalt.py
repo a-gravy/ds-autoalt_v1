@@ -56,10 +56,11 @@ import yaml
 from collections import defaultdict
 from autoalts.daily_top import DailyTop
 # from autoalts.toppick import TopPick
+# from autoalts.basic_alt import BasicALT
+from autoalts.popular import Popular
+from autoalts.trending import Trending
 from autoalts.new_arrival import NewArrival
 from autoalts.because_you_watched import BecauseYouWatched
-from autoalts.trending import Trending
-from autoalts.popular import Popular
 from autoalts.tag_alt import TagAlt
 from autoalts.exclusives import Exclusives
 from autoalts.coldstart import ColdStartExclusive
@@ -425,8 +426,7 @@ def main():
             }
             kwargs.update(basic_kwarg)
             alt_func = BecauseYouWatched
-
-        elif arguments["trending"]:
+        elif arguments["trending"] or arguments["popular"]:
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
@@ -436,30 +436,20 @@ def main():
                 'batch_size': arguments["--batch_size"]
             }
             kwargs.update(basic_kwarg)
-            alt_func = Trending
-
-        elif arguments["popular"]:
-            # python autoalt.py popular JFET000004 --model data/implicit_bpr.model.2021-03-21 --pool data/popular.csv --already_reco data/already_reco_SIDs.csv --blacklist data/blacklist_sids.csv --target_users data/superusers.csv --series data/sid_series.csv
-            kwargs = {
-                'target_users_path': arguments.get('--target_users', None),
-                # below are for alt.make_alt()
-                'pool_path': arguments["--pool_path"],
-                'already_reco_path': arguments["--already_reco"],
-                'bpr_model_path': arguments["--model"],
-                'batch_size': arguments["--batch_size"]
-            }
-            kwargs.update(basic_kwarg)
-            alt_func = Popular
-
+            if arguments["trending"]:
+                alt_func = Trending
+            elif arguments["popular"]:
+                alt_func = Popular
         elif arguments['tag']:
+            # python autoalt.py tag JFET000006 --model data/als_model.latest --watched_list data/user_sid_history_daily.csv   --reco_record data/recorecord.pkl    --blacklist data/blacklist_sids.csv  --target_users data/demo_users.csv  --series data/sid_series.csv
             # the user history data used here is userID, SID|SID|SID ... , different format from dscollab
             kwargs = {
                 "target_users_path":arguments.get("--target_users", None),
                 "cast_info_path":"data/cast_info.csv",
                 # below are for alt.make_alt()
-                'bpr_model_path': arguments["--model"],
+                'model_path': arguments["--model"],
                 'user_sid_history_path': arguments['--watched_list'],
-                'already_reco_path': 'data/already_reco_SIDs.csv',
+                'record_path':arguments.get("--reco_record", None),
                 'sakuhin_meta_path': 'data/sakuhin_meta.csv',
                 'lookup_table_path': "data/sakuhin_lookup_table.csv",
                 "sakuhin_cast_path": "data/sakuhin_cast.csv",

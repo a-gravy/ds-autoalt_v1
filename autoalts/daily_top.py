@@ -8,8 +8,8 @@ logging.basicConfig(level=logging.INFO)
 
 class DailyTop(AutoAltMaker):
     def __init__(self, **kwargs):
-        super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
-                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
+        super().__init__(alt_info=kwargs["alt_info"], create_date=kwargs["create_date"], blacklist_path=kwargs["blacklist_path"],
+                         series_path=kwargs["series_path"], max_nb_reco=kwargs["max_nb_reco"], min_nb_reco=kwargs["min_nb_reco"])
 
     def make_alt(self, **kwarg):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":

@@ -43,6 +43,9 @@ class AutoAltMaker(object):
         if record_path:
             self.reco_record.read_record(record_path)
 
+    def output_reco(self, userid, reco):
+        return f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n"
+
     def remove_black_duplicates(self, userid, sid_list):
         # remove blacklist & sids got reco already with the same sid order
         rm_sids = self.blacklist | self.reco_record.get_record(userid)
@@ -69,7 +72,6 @@ class AutoAltMaker(object):
                 target_users.append(line.rstrip())
             logging.info(f"read {len(target_users)} target users. ({target_users[:3]})")
         return target_users
-
 
     def rm_duplicates(self, SIDs):
         unqiues = []

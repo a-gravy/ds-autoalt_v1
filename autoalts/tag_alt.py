@@ -8,7 +8,6 @@ import plyvel
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
-# from bpr.implicit_recommender import rank
 from autoalts.utils import efficient_reading
 from ranker import Ranker
 
@@ -130,7 +129,7 @@ class SIDQueryTable:
 class TagAlt(AutoAltMaker):
     def __init__(self, **kwargs):
         super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
-                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
+                         kwargs["record_path"], kwargs["max_nb_reco"], kwargs["min_nb_reco"])
 
         self.path_params = {}
 
@@ -174,7 +173,6 @@ class TagAlt(AutoAltMaker):
             self.JFET000006 = plyvel.DB('JFET000006/', create_if_missing=True)
 
     def make_alt(self, **kwargs):
-        # (self, bpr_model_path, user_sid_history_path, already_reco_path, sakuhin_meta_path, lookup_table_path, sakuhin_cast_path):
         self.path_params = kwargs
 
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
@@ -333,8 +331,6 @@ class TagAlt(AutoAltMaker):
                     v[tag_index] = 1
             self.sid_vector[sid] = v
 
-        self.read_already_reco_sids(self.path_params["already_reco_path"])
-
         # for bucket categorization
         if not self.type_set or not self.genre_set or not self.nation_set:
             for line in efficient_reading(self.path_params["sakuhin_meta_path"], True):
@@ -350,7 +346,7 @@ class TagAlt(AutoAltMaker):
         logging.info(f'total nb of ALTs: {len(combo_user_dict)} ALTs')  # 5694 ALTs
 
         # RANK part
-        self.rank(combo_user_dict, model_path=self.path_params["bpr_model_path"])
+        self.rank(combo_user_dict, model_path=self.path_params["model_path"])
 
         # RERANK & output part
         self.rerank_and_output_from_leveldb()
@@ -491,13 +487,10 @@ class TagAlt(AutoAltMaker):
                 user_cnt += 1
                 output_list = value.decode("utf-8")
                 if output_list:
-
-                    already_reco_sids = self.already_reco_dict.get(userid, set())
-
                     for i, output_str in enumerate(output_list.split("+")):
 
                         # TODO: control the nb of tag alts here
-                        if i > 4:  # JFET0000061 ~ JFET0000065
+                        if i > 4:  # JFET0000061 ~ JFET0000063
                             break
 
                         output_arr = output_str.split("=")
@@ -505,20 +498,25 @@ class TagAlt(AutoAltMaker):
 
                         # blacklist removal, same series removal are done by query_sid_pool
                         # remove already reco
-                        reco_sids = [sid for sid in output_arr[1].split("|") if sid not in already_reco_sids]
+                        # reco_sids = [sid for sid in output_arr[1].split("|") if sid not in already_reco_sids]
+                        reco = output_arr[1].split("|")
 
-                        if len(reco_sids) < self.min_nb_reco:
+                        # remove blacklist & sids got reco already
+                        reco = self.remove_black_duplicates(userid, reco)
+
+                        if len(reco) < self.min_nb_reco:
                             continue
+                        else:
+                            # update reco_record
+                            self.reco_record.update_record(userid, sids=reco)
 
-                        # update top 6 to already reco
-                        already_reco_sids.update(reco_sids[:6])
-
+                        # w.write(self.output_reco(userid, reco_sids))
                         w.write(
                             f"{userid},{self.alt_info['feature_public_code'].values[0]}{i + 1},{self.create_date},"
-                            f"{'|'.join(reco_sids[:self.max_nb_reco])},"
+                            f"{'|'.join(reco[:self.max_nb_reco])},"
                             f"{combo_name},{self.alt_info['domain'].values[0]},1,"
                             f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
         logging.info(f"{user_cnt} users got Tag ALTs")
-
+        self.reco_record.output_record()
 

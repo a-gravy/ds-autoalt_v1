@@ -120,8 +120,9 @@ class Exclusives(AutoAltMaker):
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
                 # remove blacklist & sids got reco already
-                reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
-                new_arrivals_r = [x for x in new_arrivals if x not in reco]
+                # reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
+                reco = sid_list
+                new_arrivals_r = [x for x in new_arrivals if x not in sid_list]
 
                 # random calculate positions for new arrival
                 if new_arrivals:
@@ -132,15 +133,16 @@ class Exclusives(AutoAltMaker):
                     for i, pos in enumerate(random_position):
                         reco.insert(pos, new_arrivals[i])
 
+                # remove blacklist & sids got reco already
+                reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
+
                 if len(reco) < self.min_nb_reco:
                     continue
                 else:
+                    # update reco_record
                     self.reco_record.update_record(userid, sids=reco)
 
-                w.write(
-                    f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
-                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
-                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+                w.write(self.output_reco(userid, reco))
                 nb_output_users += 1
 
             logging.info(
@@ -159,4 +161,5 @@ class Exclusives(AutoAltMaker):
 
         coldstart = [x for x in df.sort_values(['POPULARITY_POINT'], ascending=False)['sakuhin_public_code'] if x not in top_alt_sids]
         coldstart = self.rm_series(coldstart)
+        print("coldstart SIDs = ")
         print(",".join(coldstart))

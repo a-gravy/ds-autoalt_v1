@@ -30,8 +30,8 @@ logging.basicConfig(level=logging.INFO)
 
 class NewArrival(AutoAltMaker):
     def __init__(self, **kwargs):
-        super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
-                         kwargs["max_nb_reco"], kwargs["min_nb_reco"])
+        super().__init__(alt_info=kwargs["alt_info"], create_date=kwargs["create_date"], blacklist_path=kwargs["blacklist_path"],
+                         series_path=kwargs["series_path"], max_nb_reco=kwargs["max_nb_reco"], min_nb_reco=kwargs["min_nb_reco"])
         self.target_users = None
         if kwargs['target_users_path']:
             self.target_users = self.read_target_users(kwargs['target_users_path'])

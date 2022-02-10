@@ -56,7 +56,7 @@ if __name__ == '__main__':
     # read dim_autoalt.csv
     if arguments['toppick_to_record']:
         record = RecoRecord()
-        record.toppick_to_record("dev_data/toppick.csv")
+        record.toppick_to_record(arguments["--input"])
     else:
         raise Exception("Unimplemented ERROR")
 
