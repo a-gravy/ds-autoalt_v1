@@ -37,13 +37,6 @@ Options:
 
 
 """
-
-"""
-    autoalt.py trending <feature_public_code> --model=PATH --pool=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --batch_size=<bs>]
-    autoalt.py popular <feature_public_code> --model=PATH --pool=PATH  [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py exclusives <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-
-"""
 import os
 import sys
 import logging
@@ -244,6 +237,7 @@ def allocate_fets_for_pg(dir_path, output_path="feature_table.csv", target_users
 
     logging.info("feature_table.csv allocation done")
 
+
 def check_fets(reco_path, blacklist_path, allow_blackSIDs=False):
     """
     override, since the reco format is different
@@ -332,7 +326,7 @@ def check_reco(reco_path, blacklist_path, allow_blackSIDs=False):
                     if sid not in unique_sid_pool:
                         unique_sid_pool.add(sid)
                     else:
-                        raise Exception(f"[duplicates] duplicated {sid}")
+                        raise Exception(f"[duplicates] duplicated {sid} in {line}")
             else:
                 break
     if allow_blackSIDs:

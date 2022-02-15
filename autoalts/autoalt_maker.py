@@ -51,6 +51,10 @@ class AutoAltMaker(object):
         rm_sids = self.blacklist | self.reco_record.get_record(userid)
         return [SID for SID in sid_list if SID not in rm_sids]
 
+    def check_inline_duplicates(self, reco):
+        reco_set = set(reco)
+        return 1 if len(reco_set) == len(reco) else 0
+
     def black_list_filtering(self, SIDs):
         """
         given a SID list, return a list which is filtered out blacklist sid

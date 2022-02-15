@@ -87,7 +87,7 @@ class Exclusives(AutoAltMaker):
         new_arrival_date = (datetime.date.today() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
         new_arrivals = df[df['exclusive_start_datetime'] >= new_arrival_date]
         new_arrivals = new_arrivals.sort_values(['POPULARITY_POINT'], ascending=False)
-        logging.info(f"got {len(new_arrivals)} New Arrivals 独占 : {list(new_arrivals['display_name'])}")
+        logging.info(f"got {len(new_arrivals)} New Arrivals 独占 : {list(new_arrivals['display_name'])}  {list(new_arrivals['sakuhin_public_code'])}")
 
         return list(new_arrivals['sakuhin_public_code'])
 
@@ -120,27 +120,29 @@ class Exclusives(AutoAltMaker):
                         'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
                 # remove blacklist & sids got reco already
-                # reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
-                reco = sid_list
-                new_arrivals_r = [x for x in new_arrivals if x not in sid_list]
+                reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
+                new_arrivals_r = [x for x in new_arrivals if x not in reco]
 
                 # random calculate positions for new arrival
-                if new_arrivals:
+                if new_arrivals_r:
                     random_position = [1]  # start from 1
                     for i in range(len(new_arrivals_r)-1):
                         random_position.append(random_position[-1] + random.randint(2, 3))
 
                     for i, pos in enumerate(random_position):
-                        reco.insert(pos, new_arrivals[i])
-
-                # remove blacklist & sids got reco already
-                reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]
+                        reco.insert(pos, new_arrivals_r[i])
+                else:
+                    logging.info(f"{userid} got 0 new arrivals")
 
                 if len(reco) < self.min_nb_reco:
                     continue
                 else:
                     # update reco_record
                     self.reco_record.update_record(userid, sids=reco)
+
+                if not self.check_inline_duplicates(reco):
+                    logging.info(f"duplicates in {userid} {reco}")
+                    raise ""
 
                 w.write(self.output_reco(userid, reco))
                 nb_output_users += 1
