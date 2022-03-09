@@ -51,6 +51,11 @@ class AutoAltMaker(object):
         rm_sids = self.blacklist | self.reco_record.get_record(userid)
         return [SID for SID in sid_list if SID not in rm_sids]
 
+    def remove_black_duplicates_from_set(self, userid, sid_set):
+        # remove blacklist & sids got reco already with the same sid order
+        rm_sids = self.blacklist | self.reco_record.get_record(userid)
+        return sid_set - rm_sids
+
     def check_inline_duplicates(self, reco):
         reco_set = set(reco)
         return 1 if len(reco_set) == len(reco) else 0
@@ -70,11 +75,11 @@ class AutoAltMaker(object):
         return filtered_SIDs
 
     def read_target_users(self, target_users_path):
-        target_users = []
+        target_users = set()
         if target_users_path:
             for line in efficient_reading(target_users_path):
-                target_users.append(line.rstrip())
-            logging.info(f"read {len(target_users)} target users. ({target_users[:3]})")
+                target_users.add(line.rstrip())
+            logging.info(f"read {len(target_users)} target users. ({list(target_users)[:3]})")
         return target_users
 
     def rm_duplicates(self, SIDs):

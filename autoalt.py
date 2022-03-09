@@ -5,6 +5,7 @@ Usage:
     autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py new_arrival_sids <feature_public_code> --pool_path=PATH --sakuhin_meta=PATH --toppick=PATH [pbar  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py (trending | popular | exclusives) <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
@@ -53,6 +54,7 @@ from autoalts.daily_top import DailyTop
 from autoalts.popular import Popular
 from autoalts.trending import Trending
 from autoalts.new_arrival import NewArrival
+from autoalts.new_arrival_sids import NewArrivalSIDs
 from autoalts.because_you_watched import BecauseYouWatched
 from autoalts.tag_alt import TagAlt
 from autoalts.exclusives import Exclusives
@@ -350,7 +352,7 @@ def main():
     start_time = time.time()
     today = date.today().strftime("%Y%m%d")  # e.g. 20200915
 
-    if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['byw'], arguments["trending"],
+    if any([arguments['top'], arguments['toppick'], arguments['new_arrival'], arguments['new_arrival_sids'], arguments['byw'], arguments["trending"],
             arguments["popular"], arguments['coldstart'], arguments['tag'], arguments['exclusives']]):
 
         # at first, read dim_autoalt.csv
@@ -407,7 +409,20 @@ def main():
             }
             kwargs.update(basic_kwarg)
             alt_func = NewArrival
-
+        elif arguments["new_arrival_sids"]:
+            # python autoalt.py  new_arrival_sids  JFET000008  --pool_path data/new_arrival_SIDs.csv --sakuhin_meta data/sakuhin_meta.csv --toppick data/toppick.csv  --blacklist data/blacklist_sids.csv --series data/sid_series.csv --target_users data/superusers.csv  --reco_record data/recorecord.pkl
+            kwargs = {
+                'target_users_path': arguments.get('--target_users', None),
+                # below are for alt.make_alt()
+                'sakuhin_meta': arguments["--sakuhin_meta"],
+                'pool_path': arguments["--pool_path"],
+                'record_path': arguments.get("--reco_record", None),
+                'batch_size': arguments["--batch_size"],
+                'toppick': arguments["--toppick"],
+                'pbar': arguments['pbar']
+            }
+            kwargs.update(basic_kwarg)
+            alt_func = NewArrivalSIDs
         elif arguments["byw"]:
             # python autoalt.py  byw JFET000002 --sid_name data/sid_name_dict.csv --blacklist data/blacklist_sids.csv  --watched_list data/user_sid_history.csv  --postplay data/postplay_implicit.2021-05-17.csv  --series data/sid_series.csv --target_users data/superusers.csv
             kwargs = {

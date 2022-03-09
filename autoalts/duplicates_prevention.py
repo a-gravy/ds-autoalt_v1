@@ -9,10 +9,12 @@ Options:
     --version
     --input PATH          File or dir path of input
 """
-import os, logging
+import os, logging, sys
 import yaml
 import pickle
 from docopt import docopt
+PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
+sys.path.append(PROJECT_PATH)
 from autoalts.utils import efficient_reading
 
 logging.basicConfig(level=logging.INFO)
@@ -42,9 +44,9 @@ class RecoRecord:
         self.reco_record_dict[user_id] = self.get_record(user_id) | set(sids[:self.record_range])
 
     def toppick_to_record(self, toppick_path):
-        for line in efficient_reading(toppick_path, True, "user_multi_account_id,platform,block,sakuhin_codes,feature_name,sub_text,score,create_date"):
+        for line in efficient_reading(toppick_path, True, "user_multi_account_id,sakuhin_codes,create_date,feature_name,sub_text,block"):
             arr = line.split(",")
-            self.reco_record_dict[arr[0]] = set(arr[3].split("|")[:self.record_range])
+            self.reco_record_dict[arr[0]] = set(arr[1].split("|")[:self.record_range])
 
         self.output_record("recorecord.pkl")
 

@@ -193,6 +193,7 @@ class TagAlt(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
+
     def make_tag_index_dict(self,):
         """
         go through all tags of all 作品, make index of Tag:

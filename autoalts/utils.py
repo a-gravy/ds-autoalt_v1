@@ -53,9 +53,9 @@ def efficient_reading(input_path, with_header=True, header_format=None):
     with open(input_path, 'r') as r:
         if with_header:
             header = r.readline().rstrip()
-            logging.debug(f"reading file whose format is  {header}")
+            logging.info(f"reading file whose format is  {header}")
             if header_format:
-                assert header == header_format, f"Header Format is WRONG"
+                assert header == header_format, f"Header Format:{header} is WRONG"
         while True:
             line = r.readline()
             if line:

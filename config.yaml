@@ -37,5 +37,5 @@ s3_dir:
   titledetail_reco.csv : s3://unext-datascience-prod/jobs/autoalt/
 
   cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
-  toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/
+  toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/collab/
   recorecord.pkl : s3://unext-datascience/alts/ippan_sakuhin/
