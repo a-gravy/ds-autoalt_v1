@@ -59,6 +59,58 @@ class NewArrivalSIDs(AutoAltMaker):
     def ippan_sakuhin(self, pool_path, sakuhin_meta_path, toppick_path):
         na_genre_mapping = self.read_pool(pool_path)
         sakuhin_meta = self.read_sakuhin_meta(sakuhin_meta_path)
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+            w.write(self.config['header']['feature_table'])
+            pbar = tqdm(efficient_reading(toppick_path, header_format="user_multi_account_id,sakuhin_codes,create_date,feature_name,sub_text,block")) \
+                if self.pbar else efficient_reading(toppick_path, header_format="user_multi_account_id,sakuhin_codes,create_date,feature_name,sub_text,block")
+            for line in pbar:
+                arr = line.split(",")
+                userid = arr[0]
+                sids = arr[1].split("|")
+                if self.target_users and userid not in self.target_users:
+                    continue
+
+                preference_genres = []
+                for sid in sids:
+                    genre = sakuhin_meta.get(sid, None)
+                    if genre and genre not in preference_genres:
+                        preference_genres.append(genre)
+                """
+                INFO:root:new arrivals: 53 SIDs in genre:VARIETY
+                INFO:root:new arrivals: 14 SIDs in genre:ADRAMA
+                INFO:root:new arrivals: 61 SIDs in genre:YOUGA
+                INFO:root:new arrivals: 90 SIDs in genre:HOUGA
+                INFO:root:new arrivals: 4 SIDs in genre:KIDS
+                INFO:root:new arrivals: 4 SIDs in genre:FDRAMA
+                INFO:root:new arrivals: 10 SIDs in genre:DOCUMENT
+                INFO:root:new arrivals: 7 SIDs in genre:ANIME
+                INFO:root:new arrivals: 9 SIDs in genre:DRAMA
+                """
+                reco = []
+                # build reco from preference_genres in order, if nb of reco is enough then break
+                # TODO: remove watched SIDs
+                for genre in preference_genres:
+                    pool = na_genre_mapping[genre]
+                    pool = self.remove_black_duplicates_from_set(userid, pool)
+                    nb_pick = len(pool) if len(pool) < self.max_nb_reco else self.max_nb_reco  # self.max_nb_reco+20 to avoid sids got removed
+                    reco = reco + random.sample(list(pool), k=nb_pick)
+                    if len(reco) >= self.max_nb_reco: # break is nb is enough
+                        break
+
+                if len(reco) < self.min_nb_reco:
+                    continue
+                else:
+                    # update reco_record
+                    self.reco_record.update_record(userid, sids=reco)
+
+                w.write(
+                    f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+
+    def ippan_sakuhin_(self, pool_path, sakuhin_meta_path, toppick_path):
+        na_genre_mapping = self.read_pool(pool_path)
+        sakuhin_meta = self.read_sakuhin_meta(sakuhin_meta_path)
         show_pbar = True
         print(f"toppick_path = {toppick_path}")
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
@@ -71,6 +123,33 @@ class NewArrivalSIDs(AutoAltMaker):
                 sids = arr[1].split("|")
                 if self.target_users and userid not in self.target_users:
                     continue
+
+                preference_genres = []
+                for sid in top_sids:
+                    genre = sakuhin_meta.get(sid, None)
+                    if genre and genre not in preference_genres:
+                        preference_genres.append(genre)
+                """
+                INFO:root:new arrivals: 53 SIDs in genre:VARIETY
+                INFO:root:new arrivals: 14 SIDs in genre:ADRAMA
+                INFO:root:new arrivals: 61 SIDs in genre:YOUGA
+                INFO:root:new arrivals: 90 SIDs in genre:HOUGA
+                INFO:root:new arrivals: 4 SIDs in genre:KIDS
+                INFO:root:new arrivals: 4 SIDs in genre:FDRAMA
+                INFO:root:new arrivals: 10 SIDs in genre:DOCUMENT
+                INFO:root:new arrivals: 7 SIDs in genre:ANIME
+                INFO:root:new arrivals: 9 SIDs in genre:DRAMA
+                """
+                pool = set()
+                reco = []
+                for genre in preference_genres:
+                    pool.update(na_genre_mapping[genre])
+                    pool = self.remove_black_duplicates_from_set(userid, pool)
+                    nb_pick = len(pool) if len(pool) < self.max_nb_reco else self.max_nb_reco  # self.max_nb_reco+20 to avoid sids got removed
+                    reco = reco + random.sample(list(pool), k=nb_pick)
+                    if len(reco) >= self.max_nb_reco:
+                        break
+
                 reference_top_n = 3
 
                 while True:
