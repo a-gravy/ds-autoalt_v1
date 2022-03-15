@@ -177,9 +177,8 @@ def demo_get_dim_table():
     query.to_csv(in_sql, "auto_alt_meta.csv", True)
 
 
-def get_sth_postegres():
+def get_sth_postegres(task):
     # chose the _.sql in workspace/alt/personalized/
-    task = "new_arrival_SIDs"  # "unext_sakuhin_meta" "sid_name_dict"
     # workspace/alt/ippan_sakuhin/gp/user_sid_history.sql
     # in_path = os.path.join(f"workspace/alt/ippan_sakuhin/gp/{task}.sql")
     in_path = os.path.join(f"workspace/alt/ippan_sakuhin/gp/{task}.sql")
@@ -245,13 +244,9 @@ def push_2_dw():
     query.upload_from_gzipped_csv("alt.dim_alt_n", "data/dim_alt_n.csv.gz", delete_source_file=True)
 
 
-
-def get_sth_presto():
-    pass
-
 def main():
     # get_expire_soon()
-    get_sth_postegres()
+    get_sth_postegres("user_genre_watching")
     # get_sth_cmsdb()
 
     """

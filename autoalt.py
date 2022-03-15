@@ -5,7 +5,7 @@ Usage:
     autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py new_arrival_sids <feature_public_code> --pool_path=PATH --sakuhin_meta=PATH --toppick=PATH [pbar  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py new_arrival_sids <feature_public_code> --pool_path=PATH --user_profiling_path=PATH [pbar  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py (trending | popular | exclusives) <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
@@ -414,11 +414,11 @@ def main():
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
-                'sakuhin_meta': arguments["--sakuhin_meta"],
+                # 'sakuhin_meta': arguments["--sakuhin_meta"],
                 'pool_path': arguments["--pool_path"],
                 'record_path': arguments.get("--reco_record", None),
                 'batch_size': arguments["--batch_size"],
-                'toppick': arguments["--toppick"],
+                'user_profiling_path': arguments["--user_profiling_path"],
                 'pbar': arguments['pbar']
             }
             kwargs.update(basic_kwarg)

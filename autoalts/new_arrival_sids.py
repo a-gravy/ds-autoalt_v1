@@ -1,12 +1,11 @@
 import logging
-import pandas as pd
-import operator
 from autoalts.autoalt_maker import AutoAltMaker
 from autoalts.utils import efficient_reading
-from ranker import Ranker
 import datetime
+import numpy as np
 from tqdm import tqdm
 import random
+import copy
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,7 +23,7 @@ class NewArrivalSIDs(AutoAltMaker):
 
     def make_alt(self, **kwargs):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.ippan_sakuhin(kwargs['pool_path'], kwargs['sakuhin_meta'], kwargs['toppick'])
+            self.ippan_sakuhin(kwargs['pool_path'], kwargs['user_profiling_path'])
             self.reco_record.output_record()
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
@@ -43,10 +42,17 @@ class NewArrivalSIDs(AutoAltMaker):
 
         assert len(na_genre_mapping) > 0, "Error, na_genre_mapping is empty"
 
+        na_genre_mapping = {k:list(v) for k, v in na_genre_mapping.items()}  # convert set to list
+
+        all_na_sids = []  # list of all new arrival SIDs
+        for k,v in na_genre_mapping.items():
+            all_na_sids += v
+            print(f"{k} got {len(v)}")
+
         for k, v in na_genre_mapping.items():
             logging.info(f"new arrivals: {len(v)} SIDs in genre:{k}")
 
-        return na_genre_mapping
+        return na_genre_mapping, all_na_sids
 
     @staticmethod
     def read_sakuhin_meta(sakuhin_meta_path):
@@ -56,7 +62,44 @@ class NewArrivalSIDs(AutoAltMaker):
             sakuhin_meta[arr[0]] = arr[2]
         return sakuhin_meta
 
-    def ippan_sakuhin(self, pool_path, sakuhin_meta_path, toppick_path):
+    def ippan_sakuhin(self, pool_path, user_profiling_path):
+        na_genre_mapping, all_na_sids = self.read_pool(pool_path)
+
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
+            w.write(self.config['header']['feature_table'])
+            pbar = tqdm(efficient_reading(user_profiling_path, header_format="user_multi_account_id,main_genres,ratio")) \
+                if self.pbar else efficient_reading(user_profiling_path, header_format="user_multi_account_id,main_genres,ratio")
+            for line in pbar:
+                # shuffle the pool for every user
+                na_genre_mapping_pool = copy.deepcopy(na_genre_mapping)
+                for genre, sids in na_genre_mapping.items():
+                    random.shuffle(na_genre_mapping_pool[genre])
+
+                # make positions of genre using preference ratio
+                arr = line.rstrip().split(",")
+                userid = arr[0]
+                perference = arr[1].split("|")
+                prob = [float(x)/100.0 for x in arr[2].split("|")[:-1]]
+                prob.append(1.0 - sum(prob))
+                genre_order = np.random.choice(perference, size=50, replace=True, p=prob)
+
+                reco = []
+                for genre in genre_order:
+                    if genre in na_genre_mapping_pool and len(na_genre_mapping_pool[genre]) != 0:
+                        reco.append(na_genre_mapping_pool[genre].pop())
+                        if len(reco) >= self.max_nb_reco:
+                            break
+
+                if len(reco) < self.max_nb_reco:
+                    reco += list(np.random.choice(all_na_sids, size=self.max_nb_reco-len(reco), replace=False))
+
+                w.write(
+                    f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"
+                    f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"
+                    f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
+
+    # TODO : rm
+    def ippan_sakuhin_(self, pool_path, sakuhin_meta_path, toppick_path):
         na_genre_mapping = self.read_pool(pool_path)
         sakuhin_meta = self.read_sakuhin_meta(sakuhin_meta_path)
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
