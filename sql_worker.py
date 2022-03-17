@@ -182,7 +182,8 @@ def get_sth_postegres(task):
     # workspace/alt/ippan_sakuhin/gp/user_sid_history.sql
     # in_path = os.path.join(f"workspace/alt/ippan_sakuhin/gp/{task}.sql")
     in_path = os.path.join(f"workspace/alt/ippan_sakuhin/gp/{task}.sql")
-    in_sql = get_filepath_content(in_path)
+    in_sql = get_filepath_content(in_path).format(14)
+    print(in_sql)
     query = PostgresQuery(dw_conn_string)
     query.to_csv(in_sql, f"data/{task}.csv", True)
 
@@ -246,7 +247,7 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    get_sth_postegres("user_genre_watching")
+    get_sth_postegres("new_arrival_SIDs")
     # get_sth_cmsdb()
 
     """

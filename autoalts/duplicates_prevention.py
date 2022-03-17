@@ -41,7 +41,11 @@ class RecoRecord:
         return self.reco_record_dict.get(user_id, set())
 
     def update_record(self, user_id, sids):
-        self.reco_record_dict[user_id] = self.get_record(user_id) | set(sids[:self.record_range])
+        if user_id in self.reco_record_dict:
+            self.reco_record_dict[user_id].update(sids)
+            # self.reco_record_dict[user_id] = self.get_record(user_id) | set(sids[:self.record_range])
+        else:
+            self.reco_record_dict[user_id] = set(sids)
 
     def toppick_to_record(self, toppick_path):
         for line in efficient_reading(toppick_path, True, "user_multi_account_id,sakuhin_codes,create_date,feature_name,sub_text,block"):

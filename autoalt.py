@@ -5,7 +5,7 @@ Usage:
     autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py new_arrival_sids <feature_public_code> --pool_path=PATH --user_profiling_path=PATH [pbar  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py new_arrival_sids <feature_public_code> --pool_path=PATH --user_profiling_path=PATH [pbar --watched_list=PATH  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py (trending | popular | exclusives) <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
@@ -413,6 +413,7 @@ def main():
             # python autoalt.py  new_arrival_sids  JFET000008  --pool_path data/new_arrival_SIDs.csv --sakuhin_meta data/sakuhin_meta.csv --toppick data/toppick.csv  --blacklist data/blacklist_sids.csv --series data/sid_series.csv --target_users data/superusers.csv  --reco_record data/recorecord.pkl
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
+                'watched_list_path':arguments["--watched_list"],
                 # below are for alt.make_alt()
                 # 'sakuhin_meta': arguments["--sakuhin_meta"],
                 'pool_path': arguments["--pool_path"],
