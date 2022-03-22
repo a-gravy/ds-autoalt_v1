@@ -39,21 +39,22 @@ class AutoAltMaker(object):
             self.series_dict = None
             logging.info("no series_dict -> won't remove series SIDs")
 
-        self.reco_record = RecoRecord(record_range=5)
         if record_path:
-            self.reco_record.read_record(record_path)
+            self.reco_record = RecoRecord(record_range=5)
+        else:
+            self.reco_record = None
 
     def output_reco(self, userid, reco):
         return f"{userid},{self.alt_info['feature_public_code'].values[0]},{self.create_date},{'|'.join(reco[:self.max_nb_reco])},"f"{self.alt_info['feature_title'].values[0]},{self.alt_info['domain'].values[0]},1,"f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n"
 
     def remove_black_duplicates(self, userid, sid_list):
         # remove blacklist & sids got reco already with the same sid order
-        rm_sids = self.blacklist | self.reco_record.get_record(userid)
+        rm_sids = self.blacklist | set(self.reco_record.get_record(userid))
         return [SID for SID in sid_list if SID not in rm_sids]
 
     def remove_black_duplicates_from_set(self, userid, sid_set):
         # remove blacklist & sids got reco already with the same sid order
-        rm_sids = self.blacklist | self.reco_record.get_record(userid)
+        rm_sids = self.blacklist | set(self.reco_record.get_record(userid))
         return sid_set - rm_sids
 
     def check_inline_duplicates(self, reco):

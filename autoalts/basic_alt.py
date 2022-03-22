@@ -27,7 +27,7 @@ class BasicALT(AutoAltMaker):
         logging.info(f"making {self.alt_info} using model:{kwargs['model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.ippan_sakuhin(kwargs['pool_path'], kwargs['model_path'])
-            self.reco_record.output_record()
+            self.reco_record.close()
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -68,7 +68,7 @@ class BasicALT(AutoAltMaker):
                     continue
                 else:
                     # update reco_record
-                    self.reco_record.update_record(userid, sids=reco)
+                    self.reco_record.update_record(userid, sids=reco, all=False)
 
                 w.write(self.output_reco(userid, reco))
                 nb_output_users += 1

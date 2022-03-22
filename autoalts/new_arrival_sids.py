@@ -14,25 +14,23 @@ class NewArrivalSIDs(AutoAltMaker):
     def __init__(self,**kwargs):
         super().__init__(kwargs["alt_info"], kwargs["create_date"], kwargs["blacklist_path"], kwargs["series_path"],
                          kwargs["record_path"], kwargs["max_nb_reco"], kwargs["min_nb_reco"])
-        self.target_users = None
+        self.target_users = set()
         if kwargs['target_users_path']:
             self.target_users = self.read_target_users(kwargs['target_users_path'])
 
         self.batch_size = int(kwargs["batch_size"])
         self.pbar = kwargs["pbar"]
 
-        self.watched_SIDs_dict = {}
         if kwargs['watched_list_path']:
             logging.info("adding watched SIDs into reco")
             for line in efficient_reading(kwargs['watched_list_path']):
                 arr = line.rstrip().split(",")  # user_multi_account_id,sids
-                # self.reco_record.update_record(user_id=arr[0], sids=arr[1].split("|"))
-                self.watched_SIDs_dict[arr[0]] = arr[1].split("|")
+                self.reco_record.update_record(user_id=arr[0], sids=arr[1].split("|"), all=True)
 
     def make_alt(self, **kwargs):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.ippan_sakuhin(kwargs['pool_path'], kwargs['user_profiling_path'])
-            self.reco_record.output_record()
+            self.reco_record.close()
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -67,18 +65,21 @@ class NewArrivalSIDs(AutoAltMaker):
             pbar = tqdm(efficient_reading(user_profiling_path, header_format="user_multi_account_id,main_genres,ratio")) \
                 if self.pbar else efficient_reading(user_profiling_path, header_format="user_multi_account_id,main_genres,ratio")
             for line in pbar:
+                arr = line.rstrip().split(",")
+                userid = arr[0]
+                if self.target_users and userid not in self.target_users:
+                    continue
+
                 # shuffle the pool for every user
                 na_genre_mapping_pool = copy.deepcopy(na_genre_mapping)
                 for genre, sids in na_genre_mapping.items():
                     random.shuffle(na_genre_mapping_pool[genre])
 
                 # make positions of genre using preference ratio
-                arr = line.rstrip().split(",")
-                userid = arr[0]
-                perference = arr[1].split("|")
+                preference = arr[1].split("|")
                 prob = [float(x)/100.0 for x in arr[2].split("|")[:-1]]
                 prob.append(1.0 - sum(prob))
-                genre_order = np.random.choice(perference, size=50, replace=True, p=prob)
+                genre_order = np.random.choice(preference, size=50, replace=True, p=prob)
 
                 reco = []
                 for genre in genre_order:
@@ -90,10 +91,8 @@ class NewArrivalSIDs(AutoAltMaker):
                 if len(reco) < self.max_nb_reco:
                     reco = reco + [sid for sid in all_na_sids if sid not in reco]
                     # reco += list(np.random.choice(list(all_na_sids - set(reco)), size=self.max_nb_reco-len(reco)+10, replace=False))
-
+                reco = reco[:self.max_nb_reco + 10]
                 reco = self.remove_black_duplicates(userid, reco)
-                # TODO: tmp
-                reco = [v for v in reco if v not in self.watched_SIDs_dict.get(userid, set())]
                 self.reco_record.update_record(userid, sids=reco[:self.max_nb_reco])
 
                 w.write(

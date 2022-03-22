@@ -24,8 +24,8 @@ class Exclusives(AutoAltMaker):
         logging.info(f"making {self.alt_info} using model:{kwargs['model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.make_coldstart(kwargs['pool_path'], kwargs['MAINPAGE_top_alts_path'])
-            # self.ippan_sakuhin(kwargs['pool_path'], kwargs['model_path'])
             self.ippan_sakuhin_mixing_new_arrivals(kwargs['pool_path'], kwargs['model_path'])
+            self.reco_record.close()
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
         elif self.alt_info['domain'].values[0] == "book":
@@ -138,7 +138,7 @@ class Exclusives(AutoAltMaker):
                     continue
                 else:
                     # update reco_record
-                    self.reco_record.update_record(userid, sids=reco)
+                    self.reco_record.update_record(userid, sids=reco, all=False)
 
                 if not self.check_inline_duplicates(reco):
                     logging.info(f"duplicates in {userid} {reco}")
@@ -150,7 +150,6 @@ class Exclusives(AutoAltMaker):
             logging.info(
                 "{} users got reco / total nb of user: {}, coverage rate={:.3f}%".format(nb_output_users, nb_all_users,
                                                                                          nb_output_users / nb_all_users * 100))
-        self.reco_record.output_record()
 
 
     def make_coldstart(self, pool_path, MAINPAGE_top_alts_path):

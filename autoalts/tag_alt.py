@@ -183,6 +183,7 @@ class TagAlt(AutoAltMaker):
 
             # update levelDB JFET000006 & user_profiling_tags
             self.ippan_sakuhin()
+            self.reco_record.close()
 
         elif self.alt_info['domain'].values[0] == "semiadult":
             raise Exception("Not implemented yet")
@@ -509,7 +510,7 @@ class TagAlt(AutoAltMaker):
                             continue
                         else:
                             # update reco_record
-                            self.reco_record.update_record(userid, sids=reco)
+                            self.reco_record.update_record(userid, sids=reco, all=False)
 
                         # w.write(self.output_reco(userid, reco_sids))
                         w.write(
@@ -519,5 +520,4 @@ class TagAlt(AutoAltMaker):
                             f"{self.config['feature_public_start_datetime']},{self.config['feature_public_end_datetime']}\n")
 
         logging.info(f"{user_cnt} users got Tag ALTs")
-        self.reco_record.output_record()
 

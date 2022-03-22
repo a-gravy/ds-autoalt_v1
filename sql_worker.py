@@ -247,7 +247,7 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    get_sth_postegres("new_arrival_SIDs")
+    get_sth_postegres("user_genre_watching")
     # get_sth_cmsdb()
 
     """
