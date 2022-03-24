@@ -188,8 +188,7 @@ def get_sth_postegres(task):
     query.to_csv(in_sql, f"data/{task}.csv", True)
 
 
-def get_sth_cmsdb():
-    task = "exclusive_sakuhins"  # f"exclusive_genre"  # workspace/alt/coldstart/execlusive.sql
+def get_sth_cmsdb(task):
     in_sql = get_filepath_content(str(Path(f"workspace/alt/ippan_sakuhin/cmsdb/{task}.sql")))
     query = mysql(cmsdb)
     query.to_csv(in_sql, "data/{}.csv".format(task), True)
@@ -247,8 +246,8 @@ def push_2_dw():
 
 def main():
     # get_expire_soon()
-    get_sth_postegres("user_genre_watching")
-    # get_sth_cmsdb()
+    # get_sth_postegres("user_genre_watching")
+    get_sth_cmsdb("kids_characters_meta")
 
     """
     kwargs={
