@@ -94,6 +94,7 @@ class Exclusives(AutoAltMaker):
     def ippan_sakuhin_mixing_new_arrivals(self, pool_path, model_path):
         # get New Arrivals
         new_arrivals = self.get_new_arrivals(pool_path)
+        new_arrivals = self.black_list_filtering(new_arrivals)
         random.shuffle(new_arrivals)
 
         ranker = Ranker(model_path=model_path)
