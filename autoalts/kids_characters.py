@@ -3,7 +3,7 @@ kids_characters
 
 Usage:
     kids_characters.py data_processing --input=PATH
-    kids_characters.py make_alt --model=PATH  <top_N>
+    kids_characters.py make_alt --input=PATH --model=PATH  <top_N>
     kids_characters.py make_coldstart --input=PATH
 
 
@@ -24,6 +24,8 @@ from collections import defaultdict
 import operator
 from docopt import docopt
 from tqdm import tqdm
+PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
+sys.path.append(PROJECT_PATH)
 from autoalts.utils import batch, efficient_reading
 
 
@@ -149,12 +151,18 @@ class Ranker:
         return model_users, r_character_list[ranked_indice]
 
 
-def make_characters_alt(model_path, top_N):
-    with open("kids_character_id_sakuhins.pkl", "rb") as fp:
-        character_sids_dict = pickle.load(fp)
+
+def make_characters_alt(pool_path, model_path, top_N):
+    character_sids = dict()  # character_id: ['SID0002812', 'SID0002956', ...]
+    # "KIDS_SAKUHIN_GROUP_PUBLIC_CODE","KIDS_SAKUHIN_GROUP_NAME","SIDs"
+    for line in efficient_reading(pool_path):
+        arr = line.rstrip().replace('"', '').split(",")
+        character_id = arr[0]
+        if arr[-1] != "":
+            character_sids[character_id] = character_sids.setdefault(character_id, []) + arr[-1].split("|")
 
     model = Ranker(model_path)
-    user_list, recos = model.rank_characters(character_sids_dict, target_user=None, seen_SID_weight=True,
+    user_list, recos = model.rank_characters(character_sids, target_user=None, seen_SID_weight=True,
                                              show_progress=True)
     today = datetime.date.today().strftime("%Y%m%d")
     with open("kids_characters_ALT.csv", "w") as w:
@@ -165,12 +173,16 @@ def make_characters_alt(model_path, top_N):
     logging.info("done, output at kids_characters_ALT.csv")
 
 
-def make_coldstart_characters_alt(daily_top_path, output="kids_characters_ALT.csv"):
-    with open("kids_character_id_sakuhins.pkl", "rb") as fp:   #Pickling
-        character_id_sids_dict = pickle.load(fp)
+def make_coldstart_characters_alt(pool_path, daily_top_path="daily_top.csv", output="kids_characters_ALT.csv"):
+    character_sids = dict()  # character_id: ['SID0002812', 'SID0002956', ...]
+    for line in efficient_reading(pool_path):
+        arr = line.rstrip().replace('"', '').split(",")
+        character_id = arr[0]
+        if arr[-1] != "":
+            character_sids[character_id] = character_sids.setdefault(character_id, []) + arr[-1].split("|")
 
     invered_id_character_id_sids_dict = dict()
-    for k_id, sids in character_id_sids_dict.items():
+    for k_id, sids in character_sids.items():
         for sid in sids:
             invered_id_character_id_sids_dict[sid] = k_id
 
@@ -186,7 +198,7 @@ def make_coldstart_characters_alt(daily_top_path, output="kids_characters_ALT.cs
         character_popularity_cnt[invered_id_character_id_sids_dict[sid]] += int(popularity)
 
     coldstart = [x for x,_ in sorted(character_popularity_cnt.items(), key=operator.itemgetter(1), reverse=True)]
-    coldstart = coldstart + list(set(character_id_sids_dict.keys()) - set(coldstart))
+    coldstart = coldstart + list(set(character_sids.keys()) - set(coldstart))
 
     today = datetime.date.today().strftime("%Y%m%d")
 
@@ -202,7 +214,7 @@ if __name__ == '__main__':
     if arguments['data_processing']:
         data_processing(arguments["--input"])
     elif arguments['make_alt']:
-        make_characters_alt(arguments["--model"], int(arguments["<top_N>"]))
+        make_characters_alt(arguments["--input"], arguments["--model"], int(arguments["<top_N>"]))
     elif arguments['make_coldstart']:
         make_coldstart_characters_alt(arguments["--input"])
     else:
