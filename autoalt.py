@@ -63,7 +63,7 @@ from autoalts.utils import make_demo_candidates, toppick_rm_series, efficient_re
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
-from autoalts.utils import get_files_from_s3, unzip_files_in_dir
+from autoalts.utils import get_files_from_gcs, unzip_files_in_dir
 
 logging.basicConfig(level=logging.INFO)
 
@@ -486,8 +486,9 @@ def main():
         else:
             raise Exception("Unimplemented ALT")
 
-        # download all files in kwarg from s3 to folder data/
-        get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+        # download all files in kwarg to data/
+        # get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+        get_files_from_gcs(**kwargs)
         # unzip
         logging.info("Unzipping files")
         unzip_files_in_dir("data/")

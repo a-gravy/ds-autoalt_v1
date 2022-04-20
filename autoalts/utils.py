@@ -6,7 +6,7 @@ Usage:
     utils.py demo_candidates --input=PATH
     utils.py pfid_div --input=PATH
     utils.py target_users --input=PATH [ --superusers=PATH ] [<nb>...]
-    utils.py tmp --input=PATH
+    utils.py tmp
 
 Options:
     -h --help Show this screen
@@ -23,6 +23,7 @@ import yaml
 import boto3
 import pickle
 import time
+from google.cloud import storage
 from docopt import docopt
 
 logging.basicConfig(level=logging.INFO)
@@ -126,6 +127,25 @@ def split_s3_path(text):
     arr = text.split("/")
     arr = [x for x in arr if x]
     return arr[1], '/'.join(arr[2:])
+
+def get_files_from_gcs(**kwarg):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("ds-airflow-jobs")
+    for k, v in kwarg.items():
+        if not isinstance(v, str):
+            continue
+        # data/xxx.csv -> xxx.csv -> xxx.csv.gz
+        # data/yyy.model -> yyy.model
+        if os.path.exists(v):
+            print(f"{v} exists")
+            continue
+
+        if v.endswith(".csv"):
+            file_name = os.path.basename(v)
+            print(f"download {file_name}")
+            file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
+            blob = bucket.blob(f"autoalt_v1/dev/{file_name}")
+            blob.download_to_filename(f"data/{file_name}")
 
 
 def get_files_from_s3(domain_name, **kwarg):
@@ -305,12 +325,12 @@ def make_target_users(pfid_path, target_pfid, superusers_path=None):
     user_set = set()  # for preventing duplicates
 
     if superusers_path:
-        for line in efficient_reading(superusers_path, header_format="user_multi_account_id"):
+        for line in efficient_reading(superusers_path):
             user_set.add(line.rstrip())
 
-    for line in efficient_reading(pfid_path, header_format="pfid_matsubi,user_platform_id,user_multi_account_id"):
+    for line in efficient_reading(pfid_path, header_format="user_platform_id,multi_account_id"):
         arr = line.rstrip().split(',')
-        last_pfid = arr[0]
+        last_pfid = arr[0][-1]
         user_id = arr[-1]
         if last_pfid in target_pfid:
             user_set.add(user_id)
@@ -339,7 +359,12 @@ def main():
         make_target_users(pfid_path=arguments['--input'], target_pfid=arguments['<nb>'],
                           superusers_path=arguments["--superusers"])
     elif arguments['tmp']:
-        tmp_processing(arguments['--input'])
+        kwargs = {
+            "x":"black_list.csv",
+            "y":" control_users.csv",
+            "z":" popular.csv"
+        }
+        get_files_from_gcs(**kwargs)
     else:
         raise Exception("Unimplemented ERROR")
 

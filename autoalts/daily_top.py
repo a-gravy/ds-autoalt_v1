@@ -120,7 +120,9 @@ class DailyTop(AutoAltMaker):
         sid_list = []
 
         for line in efficient_reading(input_path, True, "sakuhin_public_code,sakuhin_name,uu,today_top_rank"):
-            sid_list.append(line.split(",")[0])
+            sid = line.split(",")[0]
+            if self.blacklist and sid not in self.blacklist:
+                sid_list.append(sid)
 
         reco_str = '|'.join(sid_list[:self.max_nb_reco])
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
