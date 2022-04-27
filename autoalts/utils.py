@@ -32,19 +32,6 @@ with open("config.yaml") as f:
     config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
 
-def tmp_processing(byw_path):
-    """
-    tmp remove the BYW of PM017326116 and SID0029406
-    :return:
-    """
-    with open("JFET000002_r.csv", "w") as w:
-        for line in efficient_reading(byw_path):
-            if 'PM017326116' in line and '過激派オペラ' in line:
-                logging.info(f"remove - {line}")
-            else:
-                w.write(line)
-
-
 def efficient_reading(input_path, with_header=True, header_format=None):
     """
     yield one line at once til go through entire file,
@@ -128,10 +115,10 @@ def split_s3_path(text):
     arr = [x for x in arr if x]
     return arr[1], '/'.join(arr[2:])
 
-def get_files_from_gcs(**kwarg):
+def get_files_from_gcs(**kwargs):
     storage_client = storage.Client()
     bucket = storage_client.bucket("ds-airflow-jobs")
-    for k, v in kwarg.items():
+    for k, v in kwargs.items():
         if not isinstance(v, str):
             continue
         # data/xxx.csv -> xxx.csv -> xxx.csv.gz
@@ -146,6 +133,44 @@ def get_files_from_gcs(**kwarg):
             file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
             blob = bucket.blob(f"autoalt_v1/dev/{file_name}")
             blob.download_to_filename(f"data/{file_name}")
+
+
+def get_files_from_cloud(**kwarg):
+    storage_client = storage.Client()
+    gcs_bucket = storage_client.bucket("ds-airflow-jobs")
+    aws_client = boto3.client('s3')
+
+    for k, v in kwarg.items():
+        if not isinstance(v, str):
+            continue
+        # data/xxx.csv -> xxx.csv -> xxx.csv.gz
+        # data/yyy.model -> yyy.model
+        if os.path.exists(v):
+            print(f"{v} exists")
+            continue
+
+        file_name = os.path.basename(v)
+        """
+        if "user_sid_history" in v:
+            blobs = storage_client.list_blobs(gcs_bucket, prefix="autoalt_v1/dev/", delimiter="/")
+            file_names = [os.path.basename(blob.name) for blob in blobs if os.path.basename(blob.name).startswith("user_sid_history")]
+            for file in file_names:
+                print(f"download {file}")
+                blob = gcs_bucket.blob(f"autoalt_v1/dev/{file}")
+                blob.download_to_filename(f"data/{file}")
+        """
+        if v.endswith(".csv"):
+            print(f"download {file_name}")
+            file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
+            blob = gcs_bucket.blob(f"autoalt_v1/dev/{file_name}")
+            blob.download_to_filename(f"data/{file_name}")
+        elif 'model' in v:
+
+            s3_dir_path = "s3://unext-datascience-prod/jobs/collaborative/ippan/"
+            s3_bucket, key = split_s3_path(s3_dir_path)
+            print(f"downloading {s3_bucket} {key}/{file_name}")
+            with open(f"data/{file_name}", 'wb') as f:
+                aws_client.download_fileobj(s3_bucket, f"{key}/{file_name}", f)
 
 
 def get_files_from_s3(domain_name, **kwarg):
@@ -360,11 +385,11 @@ def main():
                           superusers_path=arguments["--superusers"])
     elif arguments['tmp']:
         kwargs = {
-            "x":"black_list.csv",
-            "y":" control_users.csv",
-            "z":" popular.csv"
+            "x":"user_sid_history.csv",
+            #"z":"popular.csv",
+            #"m": "als_model.latest"
         }
-        get_files_from_gcs(**kwargs)
+        get_files_from_cloud(**kwargs)
     else:
         raise Exception("Unimplemented ERROR")
 

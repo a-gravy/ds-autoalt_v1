@@ -49,18 +49,14 @@ class BecauseYouWatched(AutoAltMaker):
                 else:
                     break
 
-    def read_sid_name(self, sid_name_path):
+    def read_sid_name(self, sid_name_path="sakuhin_meta.csv"):
         logging.info("loading sid, name lookup table")
         sid_name_dict = {}
-        with open(sid_name_path, "r") as r:
-            r.readline()
-            while True:
-                line = r.readline()
-                if line:
-                    arr = line.rstrip().split(",")
-                    sid_name_dict.setdefault(arr[0], " ".join(arr[1:]))  # remove , in title to prevent bugs
-                else:
-                    break
+        for line in efficient_reading(sid_name_path, "sakuhin_public_code,sakuhin_name,main_genre_code,menu_names,parent_menu_names,nations"):
+            arr = line.rstrip().split(",")
+            title = arr[1].replace(",", " ")
+            sid_name_dict.setdefault(arr[0], title)  # remove , in title to prevent bugs
+
         return sid_name_dict
 
     def semiadult(self, user_sid_history_path,

@@ -63,7 +63,7 @@ from autoalts.utils import make_demo_candidates, toppick_rm_series, efficient_re
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
-from autoalts.utils import get_files_from_gcs, unzip_files_in_dir
+from autoalts.utils import get_files_from_cloud, unzip_files_in_dir
 
 logging.basicConfig(level=logging.INFO)
 
@@ -356,7 +356,7 @@ def main():
             arguments["popular"], arguments['coldstart'], arguments['tag'], arguments['exclusives']]):
 
         # at first, read dim_autoalt.csv
-        get_files_from_s3(domain_name="", **{'':"data/dim_autoalt.csv"})
+        get_files_from_cloud(domain_name="", **{'':"data/dim_autoalt.csv"})
         logging.info("Unzipping files")
         unzip_files_in_dir("data/")
 
@@ -381,7 +381,7 @@ def main():
         kwargs = None
 
         if arguments['top']:
-            # python autoalt.py top CFET000001 --input data/daily_top.csv --blacklist data/blacklist_sids.csv  --max_nb_reco 10
+            # python autoalt.py top CFET000001 --input data/daily_top.csv --blacklist data/black_list.csv  --max_nb_reco 10
             kwargs = {
                 'input_path': arguments["--input"],
             }
@@ -398,19 +398,19 @@ def main():
                          target_items_path=arguments['--target_items'])
             """
         elif arguments["new_arrival"]:
-            # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/blacklist_sids.csv --series data/sid_series.csv
+            # python autoalt.py new_arrival JFET000003 --model data/implicit_bpr.model.2020-10-31  --blacklist data/black_list.csv --series data/sid_series.csv
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
                 'input_path': arguments["--input"],
                 'bpr_model_path':arguments['--model'],
-                'new_arrival_EP_path':"data/new_arrival_EP.csv",
+                'new_arrival_EP_path':"data/new_arrival_ep.csv",
                 'user_ep_history_path':"data/user_ep_history.csv",
             }
             kwargs.update(basic_kwarg)
             alt_func = NewArrival
         elif arguments["new_arrival_sids"]:
-            # python autoalt.py  new_arrival_sids  JFET000008  --pool_path data/new_arrival_SIDs.csv --sakuhin_meta data/sakuhin_meta.csv --toppick data/toppick.csv  --blacklist data/blacklist_sids.csv --series data/sid_series.csv --target_users data/superusers.csv  --reco_record data/recorecord.pkl
+            # python autoalt.py  new_arrival_sids  JFET000008  --pool_path data/new_arrival_SIDs.csv --sakuhin_meta data/sakuhin_meta.csv --toppick data/toppick.csv  --blacklist data/black_list.csv --series data/sid_series.csv --target_users data/superusers.csv  --reco_record data/recorecord.pkl
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 'watched_list_path':arguments["--watched_list"],
@@ -425,7 +425,7 @@ def main():
             kwargs.update(basic_kwarg)
             alt_func = NewArrivalSIDs
         elif arguments["byw"]:
-            # python autoalt.py  byw JFET000002 --sid_name data/sid_name_dict.csv --blacklist data/blacklist_sids.csv  --watched_list data/user_sid_history.csv  --postplay data/postplay_implicit.2021-05-17.csv  --series data/sid_series.csv --target_users data/superusers.csv
+            # python autoalt.py  byw JFET000002 --sid_name data/sid_name_dict.csv --blacklist data/black_list.csv  --watched_list data/user_sid_history.csv  --postplay data/postplay_implicit.2021-05-17.csv  --series data/sid_series.csv --target_users data/superusers.csv
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 'sid_name_path':arguments["--sid_name"],
@@ -451,7 +451,7 @@ def main():
             elif arguments["popular"]:
                 alt_func = Popular
         elif arguments['tag']:
-            # python autoalt.py tag JFET000006 --model data/als_model.latest --watched_list data/user_sid_history_daily.csv   --reco_record data/recorecord.pkl    --blacklist data/blacklist_sids.csv  --target_users data/demo_users.csv  --series data/sid_series.csv
+            # python autoalt.py tag JFET000006 --model data/als_model.latest --watched_list data/user_sid_history_daily.csv   --reco_record data/recorecord.pkl    --blacklist data/black_list.csv  --target_users data/demo_users.csv  --series data/sid_series.csv
             # the user history data used here is userID, SID|SID|SID ... , different format from dscollab
             kwargs = {
                 "target_users_path":arguments.get("--target_users", None),
@@ -468,15 +468,14 @@ def main():
             kwargs.update(basic_kwarg)
             alt_func = TagAlt
         elif arguments['exclusives']:
-            # python autoalt.py exclusives JFET000007 --model data/als_model.latest --pool_path data/exclusive_sakuhins.csv --blacklist data/blacklist_sids.csv --series data/sid_series.csv --target_users data/demo_users.csv --reco_record data/recorecord.pkl
+            # python autoalt.py exclusives JFET000007 --model data/als_model.latest --pool_path data/exclusive_sakuhins.csv --blacklist data/black_list.csv --series data/sid_series.csv --target_users data/demo_users.csv --reco_record data/recorecord.pkl
             kwargs = {
                 'target_users_path': arguments.get('--target_users', None),
                 # below are for alt.make_alt()
                 'pool_path': arguments["--pool_path"],
                 'record_path': arguments.get("--reco_record", None),
                 'model_path': arguments["--model"],
-                'batch_size': arguments["--batch_size"],
-                'MAINPAGE_top_alts_path': "data/MAINPAGE_top_alts.csv"
+                'batch_size': arguments["--batch_size"]
             }
             kwargs.update(basic_kwarg)
             alt_func = Exclusives
@@ -488,7 +487,7 @@ def main():
 
         # download all files in kwarg to data/
         # get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
-        get_files_from_gcs(**kwargs)
+        get_files_from_cloud(**kwargs)
         # unzip
         logging.info("Unzipping files")
         unzip_files_in_dir("data/")
@@ -499,12 +498,12 @@ def main():
     elif arguments['allocate_FETs']:
         allocate_fets_for_pg(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))
         # TODO
-        # check_fets(arguments['--output'], "data/blacklist_sids.csv", allow_blackSIDs=False)
+        # check_fets(arguments['--output'], "data/black_list.csv", allow_blackSIDs=False)
     elif arguments['allocate_FETs_page']:
         # python autoalt.py allocate_FETs_page MAINPAGE --input data/autoalt_ippan_sakuhin_features.csv
         allocate_fets_to_page_generation(arguments['--input'], arguments["<feature_public_code>"])
     elif arguments['check_reco']:
-        # python autoalt.py check_reco --input JFET000006.csv --blacklist data/blacklist_sids.csv
+        # python autoalt.py check_reco --input JFET000006.csv --blacklist data/black_list.csv
         check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
     elif arguments['demo_candidates']:
         make_demo_candidates(feature_table_path=arguments['--input'], output_path=arguments['--output'])

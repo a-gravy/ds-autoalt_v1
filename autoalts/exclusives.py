@@ -23,7 +23,7 @@ class Exclusives(AutoAltMaker):
     def make_alt(self, **kwargs):
         logging.info(f"making {self.alt_info} using model:{kwargs['model_path']}")
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
-            self.make_coldstart(kwargs['pool_path'], kwargs['MAINPAGE_top_alts_path'])
+            self.make_coldstart(kwargs['pool_path'])
             self.ippan_sakuhin_mixing_new_arrivals(kwargs['pool_path'], kwargs['model_path'])
             self.reco_record.close()
         elif self.alt_info['domain'].values[0] == "semiadult":
@@ -87,7 +87,7 @@ class Exclusives(AutoAltMaker):
         new_arrival_date = (datetime.date.today() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
         new_arrivals = df[df['exclusive_start_datetime'] >= new_arrival_date]
         new_arrivals = new_arrivals.sort_values(['POPULARITY_POINT'], ascending=False)
-        logging.info(f"got {len(new_arrivals)} New Arrivals 独占 : {list(new_arrivals['display_name'])}  {list(new_arrivals['sakuhin_public_code'])}")
+        logging.info(f"got {len(new_arrivals)} New Arrivals 独占 : {list(new_arrivals['DISPLAY_NAME'])}  {list(new_arrivals['sakuhin_public_code'])}")
 
         return list(new_arrivals['sakuhin_public_code'])
 
@@ -153,15 +153,10 @@ class Exclusives(AutoAltMaker):
                                                                                          nb_output_users / nb_all_users * 100))
 
 
-    def make_coldstart(self, pool_path, MAINPAGE_top_alts_path):
+    def make_coldstart(self, pool_path):
         # TODO: also remove duplicates in daily top
         df = pd.read_csv(pool_path)
-
-        top_alt_sids = set()
-        for line in efficient_reading(MAINPAGE_top_alts_path, True, "feature_public_code,sakuhin_public_code"):
-            top_alt_sids.add(line.rstrip().split(",")[1])
-
-        coldstart = [x for x in df.sort_values(['POPULARITY_POINT'], ascending=False)['sakuhin_public_code'] if x not in top_alt_sids]
+        coldstart = [x for x in df.sort_values(['POPULARITY_POINT'], ascending=False)['sakuhin_public_code']]
         coldstart = self.rm_series(coldstart)
         print("coldstart SIDs = ")
         print(",".join(coldstart))

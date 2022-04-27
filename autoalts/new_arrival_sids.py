@@ -21,9 +21,10 @@ class NewArrivalSIDs(AutoAltMaker):
         self.batch_size = int(kwargs["batch_size"])
         self.pbar = kwargs["pbar"]
 
+        # TODO
         if kwargs['watched_list_path']:
             logging.info("adding watched SIDs into reco")
-            for line in efficient_reading(kwargs['watched_list_path']):
+            for line in efficient_reading(kwargs['watched_list_path'], with_header=False):
                 arr = line.rstrip().split(",")  # user_multi_account_id,sids
                 self.reco_record.update_record(user_id=arr[0], sids=arr[1].split("|"), all=True)
 
@@ -42,7 +43,9 @@ class NewArrivalSIDs(AutoAltMaker):
     def read_pool(pool_path):
         na_genre_mapping = dict()  # {genre: set(SIDs)}
         all_na_sids = []  # list of all new arrival SIDs in order of uu desc
-        for line in efficient_reading(pool_path, header_format="sakuhin_public_code,display_name,main_genre_code,production_year,uu"):
+        # TODO: check header & format
+        for line in efficient_reading(pool_path,
+                                      header_format="sakuhin_public_code,sakuhin_name,main_genre_code,first_sale_datetime,production_year,uu"):
             arr = line.rstrip().split(",")
             na_genre_mapping.setdefault(arr[2], {arr[0]}).update({arr[0]})
             if arr[-1]:
@@ -60,10 +63,11 @@ class NewArrivalSIDs(AutoAltMaker):
     def ippan_sakuhin(self, pool_path, user_profiling_path):
         na_genre_mapping, all_na_sids, all_na_sids_set = self.read_pool(pool_path)
 
+        # TODO: change
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
-            pbar = tqdm(efficient_reading(user_profiling_path, header_format="user_multi_account_id,main_genres,ratio")) \
-                if self.pbar else efficient_reading(user_profiling_path, header_format="user_multi_account_id,main_genres,ratio")
+            pbar = tqdm(efficient_reading(user_profiling_path,with_header=False)) \
+                if self.pbar else efficient_reading(user_profiling_path, with_header=False)
             for line in pbar:
                 arr = line.rstrip().split(",")
                 userid = arr[0]
@@ -76,9 +80,17 @@ class NewArrivalSIDs(AutoAltMaker):
                     random.shuffle(na_genre_mapping_pool[genre])
 
                 # make positions of genre using preference ratio
-                preference = arr[1].split("|")
-                prob = [float(x)/100.0 for x in arr[2].split("|")[:-1]]
-                prob.append(1.0 - sum(prob))
+                arr = line.split(",")
+                profile = {}  # genre:playtime
+                total_time = 0
+                for genre, playt_time in zip(arr[2].split("|"), arr[3].split("|")):
+                    print(genre, playt_time)
+                    profile[genre] = profile.setdefault(genre, 0) + int(playt_time)
+                    total_time += int(playt_time)
+
+                preference = list(profile.keys())
+                prob = [x/total_time for x in profile.values()]  # [float(x)/100.0 for x in arr[2].split("|")[:-1]]
+                prob[-1] = (1.0 - sum(prob[:-1]))
                 genre_order = np.random.choice(preference, size=50, replace=True, p=prob)
 
                 reco = []

@@ -187,7 +187,7 @@ class NewArrival(AutoAltMaker):
 
                 yield model.user_item_matrix.id2user[uid], reranked_item_indexs, score_list
 
-    def new_arrival_ep_loader(sefl, input_path="data/new_arrival_EP.csv"):
+    def new_arrival_ep_loader(self, input_path="data/new_arrival_EP.csv"):
         """
         :return: dict {sakuhin_public_code:episode_public_code}
         """
