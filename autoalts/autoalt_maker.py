@@ -18,16 +18,12 @@ class AutoAltMaker(object):
         with open("config.yaml") as f:
             self.config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
-        self.blacklist = set()
+        self.blacklist = []
         if blacklist_path:
-            with open(blacklist_path, "r") as r:
-                while True:
-                    line = r.readline()
-                    if line:
-                        self.blacklist.add(line.rstrip())
-                    else:
-                        break
-            logging.info(f"{len(self.blacklist)} blacklist SIDs load")
+            for line in efficient_reading(blacklist_path, with_header=True):
+                self.blacklist.append(line.rstrip())
+            logging.info(f"{len(self.blacklist)} blacklist SIDs load. e.g. {self.blacklist[:3]}")
+            self.blacklist = set(self.blacklist)
         else:
             logging.info("no blacklist filtering")
 

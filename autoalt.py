@@ -10,7 +10,7 @@ Usage:
     autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
-    autoalt.py check_reco --input=PATH --blacklist=PATH [allow_blackSIDs]
+    autoalt.py check_reco --input=PATH --target_users=PATH --blacklist=PATH
     autoalt.py demo_candidates --input=PATH --output=PATH
     autoalt.py rm_series --input=PATH --output=PATH --series=PATH --target_users=PATH
     autoalt.py coldstart <feature_public_code> --input=PATH
@@ -60,6 +60,7 @@ from autoalts.tag_alt import TagAlt
 from autoalts.exclusives import Exclusives
 from autoalts.coldstart import ColdStartExclusive
 from autoalts.utils import make_demo_candidates, toppick_rm_series, efficient_reading
+import feature_table_checking
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(PROJECT_PATH)
@@ -121,7 +122,7 @@ def allocate_fets_to_page_generation(feature_table_path, page_public_code):
             w.write(f"{user_id},{'|'.join(sorted(unsorted_fets, key=fet_ranking, reverse=True))}\n")
 
 
-def allocate_fets_for_pg(dir_path, output_path="feature_table.csv", target_users_path=None):
+def feature_table_allocation(dir_path, output_path="feature_table.csv", target_users_path=None):
     """
     allocate all feature files under dir_path into one single file with uniform format
     for uploading to Cassandra
@@ -166,7 +167,7 @@ def allocate_fets_for_pg(dir_path, output_path="feature_table.csv", target_users
                 return line
                 # return line.rstrip() + ',2020-01-01 00:00:00,2029-12-31 23:59:59\n'
             output_func = autoalt_format
-        elif 'JFET' in file:  # 自動生成ALTs & for target users only
+        elif 'JFET' in file:  # for target users only
             def autoalt_format(line):
                 if target_users and line.split(",")[0] not in target_users:
                     return "not target user"
@@ -238,103 +239,6 @@ def allocate_fets_for_pg(dir_path, output_path="feature_table.csv", target_users
     feature_table_writer.close()
 
     logging.info("feature_table.csv allocation done")
-
-
-def check_fets(reco_path, blacklist_path, allow_blackSIDs=False):
-    """
-    override, since the reco format is different
-    """
-    logging.info("start checking FETs")
-    blacklist = set()
-    with open(blacklist_path, "r") as r:
-        while True:
-            line = r.readline()
-            if line:
-                blacklist.add(line.rstrip())
-            else:
-                break
-    logging.info(f"{len(blacklist)} blacklist SIDs load")
-
-    coldstart_alt_cnt = 0
-    non_login_coldstart_alt_cnt = 0
-
-    # user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt
-    line_counter = 0
-    for line in tqdm.tqdm(efficient_reading(reco_path), smoothing=0, mininterval=1.0):
-        line_counter += 1
-        unique_sid_pool = set()
-        user_id = line.split(",")[0]
-        SIDs = line.split(",")[3].split("|")
-
-        if user_id == 'coldstart':
-            coldstart_alt_cnt += 1
-        elif user_id == 'non-logged-in-coldstart':
-            non_login_coldstart_alt_cnt += 1
-
-        for sid in SIDs:
-            assert sid, f"[check_reco]: {reco_path} has a line [{line.rstrip()}] which has no SIDs"
-
-            assert not allow_blackSIDs or sid in blacklist, f"[black_list] {sid} in {line}"
-
-            assert sid not in unique_sid_pool, f"[duplicates] duplicated {sid}"
-            unique_sid_pool.add(sid)
-
-    logging.info(f"{reco_path} got {line_counter} lines")
-    logging.info("[format check] pass")
-    logging.info("[Inside ALT duplicates check] pass")
-
-    if allow_blackSIDs:
-        pass
-    else:
-        logging.info(f"[blacklist check] pass")
-
-    logging.info(f"coldstart has {coldstart_alt_cnt}  ALTs, pass")
-    logging.info(f"non_login_coldstart has {non_login_coldstart_alt_cnt}  ALTs, pass")
-    assert coldstart_alt_cnt > 0, "coldstart_alt_cnt should > 0"
-    assert non_login_coldstart_alt_cnt > 0, "non_login_coldstart_alt_cnt should > 0"
-
-def check_reco(reco_path, blacklist_path, allow_blackSIDs=False):
-    """
-    override, since the reco format is different
-    """
-    blacklist = set()
-    with open(blacklist_path, "r") as r:
-        while True:
-            line = r.readline()
-            if line:
-                blacklist.add(line.rstrip())
-            else:
-                break
-    logging.info(f"{len(blacklist)} blacklist SIDs load")
-
-    # user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt
-    line_counter = 0
-    with open(reco_path, "r") as r:
-        r.readline()
-        while True:
-            line = r.readline()
-            if line:
-                line_counter += 1
-                unique_sid_pool = set()
-                SIDs = line.split(",")[3].split("|")
-
-                for sid in SIDs:
-                    if not sid:
-                        raise Exception(f"[check_reco]: {reco_path} has a line [{line.rstrip()}] which has no SIDs")
-
-                    if not allow_blackSIDs and sid in blacklist:
-                        raise Exception(f"[black_list] {sid} in {line}")
-
-                    if sid not in unique_sid_pool:
-                        unique_sid_pool.add(sid)
-                    else:
-                        raise Exception(f"[duplicates] duplicated {sid} in {line}")
-            else:
-                break
-    if allow_blackSIDs:
-        logging.info(f"{reco_path} (w/ {line_counter} lines) skips blacklist and passes duplicates check, good to go")
-    else:
-        logging.info(f"{reco_path} (w/ {line_counter} lines) passes blacklist and duplicates check, good to go")
 
 
 def check_path_existing(**kwargs):
@@ -496,7 +400,7 @@ def main():
         alt.make_alt(**kwargs)
 
     elif arguments['allocate_FETs']:
-        allocate_fets_for_pg(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))
+        feature_table_allocation(arguments['--input'], arguments['--output'], arguments.get("--target_users", None))
         # TODO
         # check_fets(arguments['--output'], "data/black_list.csv", allow_blackSIDs=False)
     elif arguments['allocate_FETs_page']:
@@ -504,7 +408,8 @@ def main():
         allocate_fets_to_page_generation(arguments['--input'], arguments["<feature_public_code>"])
     elif arguments['check_reco']:
         # python autoalt.py check_reco --input JFET000006.csv --blacklist data/black_list.csv
-        check_reco(arguments["--input"], arguments["--blacklist"], arguments['allow_blackSIDs'])
+        feature_table_checking.black_empty_duplicates_checking(arguments["--input"], arguments["--target_users"],
+                                        arguments.get("--blacklist", None))
     elif arguments['demo_candidates']:
         make_demo_candidates(feature_table_path=arguments['--input'], output_path=arguments['--output'])
     elif arguments['rm_series']:

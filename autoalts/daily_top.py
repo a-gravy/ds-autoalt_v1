@@ -117,14 +117,16 @@ class DailyTop(AutoAltMaker):
         make ALT_daily_top by order of nb_watch sum using GP datamart
 
         """
-        sid_list = []
+        sid_list = {}  # {SID:uu}
 
         for line in efficient_reading(input_path, True, "sakuhin_public_code,sakuhin_name,uu,today_top_rank"):
-            sid = line.split(",")[0]
-            if self.blacklist and sid not in self.blacklist:
-                sid_list.append(sid)
+            arr = line.split(",")
+            if not self.blacklist or (self.blacklist and arr[0] not in self.blacklist):
+                sid_list[arr[0]] = int(arr[-1])
 
-        reco_str = '|'.join(sid_list[:self.max_nb_reco])
+        reco_str = '|'.join([k for k, v in sorted(sid_list.items(), key=operator.itemgetter(1), reverse=False)][:self.max_nb_reco])
+        logging.info(f"sid_list = {sid_list}")
+        logging.info(f"reco_str = {reco_str}")
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
             w.write(f"COMMON,{self.alt_info['feature_public_code'].values[0]},{self.create_date},{reco_str},"

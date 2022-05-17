@@ -150,23 +150,13 @@ def get_files_from_cloud(**kwarg):
             continue
 
         file_name = os.path.basename(v)
-        """
-        if "user_sid_history" in v:
-            blobs = storage_client.list_blobs(gcs_bucket, prefix="autoalt_v1/dev/", delimiter="/")
-            file_names = [os.path.basename(blob.name) for blob in blobs if os.path.basename(blob.name).startswith("user_sid_history")]
-            for file in file_names:
-                print(f"download {file}")
-                blob = gcs_bucket.blob(f"autoalt_v1/dev/{file}")
-                blob.download_to_filename(f"data/{file}")
-        """
         if v.endswith(".csv"):
             print(f"download {file_name}")
             file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
-            blob = gcs_bucket.blob(f"autoalt_v1/dev/{file_name}")
+            blob = gcs_bucket.blob(f"autoalt_v1/dev/{file_name}")  # 1.2.4 = dev, 1.2.5 = prod
             blob.download_to_filename(f"data/{file_name}")
         elif 'model' in v:
-
-            s3_dir_path = "s3://unext-datascience-prod/jobs/collaborative/ippan/"
+            s3_dir_path = "s3://unext-datascience-prod/jobs/collaborative/ippan_gke/"
             s3_bucket, key = split_s3_path(s3_dir_path)
             print(f"downloading {s3_bucket} {key}/{file_name}")
             with open(f"data/{file_name}", 'wb') as f:

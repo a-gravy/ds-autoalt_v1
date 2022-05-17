@@ -84,7 +84,6 @@ class NewArrivalSIDs(AutoAltMaker):
                 profile = {}  # genre:playtime
                 total_time = 0
                 for genre, playt_time in zip(arr[2].split("|"), arr[3].split("|")):
-                    print(genre, playt_time)
                     profile[genre] = profile.setdefault(genre, 0) + int(playt_time)
                     total_time += int(playt_time)
 
