@@ -178,7 +178,7 @@ class NewArrival(AutoAltMaker):
                 nonzeros_in_row = set(rows[i].nonzero()[1])
                 best = sorted(enumerate(scores[i]), key=lambda x: -x[1])
 
-                # only keep nonzero indice == already seen items
+                # only keep nonzero indices == already seen items
                 reranked_targer_items = [(index, score) for index, score in best if index in nonzeros_in_row]
                 score_list = [score for index, score in reranked_targer_items]
                 # target matrix index -> matrix index -> item id

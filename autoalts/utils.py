@@ -136,6 +136,8 @@ def get_files_from_gcs(**kwargs):
 
 
 def get_files_from_cloud(**kwarg):
+    env = "prod"
+    logging.info(f"Downloading Files (env:{env})")
     storage_client = storage.Client()
     gcs_bucket = storage_client.bucket("ds-airflow-jobs")
     aws_client = boto3.client('s3')
@@ -153,7 +155,7 @@ def get_files_from_cloud(**kwarg):
         if v.endswith(".csv"):
             print(f"download {file_name}")
             file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
-            blob = gcs_bucket.blob(f"autoalt_v1/dev/{file_name}")  # 1.2.4 = dev, 1.2.5 = prod
+            blob = gcs_bucket.blob(f"autoalt_v1/{env}/{file_name}")
             blob.download_to_filename(f"data/{file_name}")
         elif 'model' in v:
             s3_dir_path = "s3://unext-datascience-prod/jobs/collaborative/ippan_gke/"

@@ -14,6 +14,7 @@ Usage:
     autoalt.py demo_candidates --input=PATH --output=PATH
     autoalt.py rm_series --input=PATH --output=PATH --series=PATH --target_users=PATH
     autoalt.py coldstart <feature_public_code> --input=PATH
+    autoalt.py make_filtering_matrix --model=PATH  --input=PATH --output=PATH
 
 Options:
     -h --help Show this screen
@@ -60,6 +61,7 @@ from autoalts.tag_alt import TagAlt
 from autoalts.exclusives import Exclusives
 from autoalts.coldstart import ColdStartExclusive
 from autoalts.utils import make_demo_candidates, toppick_rm_series, efficient_reading
+from filtering_matrix import make_filtering_matrix
 import feature_table_checking
 
 PROJECT_PATH = os.path.abspath("%s/.." % os.path.dirname(__file__))
@@ -415,6 +417,10 @@ def main():
     elif arguments['rm_series']:
         toppick_rm_series(series_path=arguments['--series'], input=arguments['--input'], output=arguments['--output'],
                           target_users_path=arguments['--target_users'])
+    elif arguments['make_filtering_matrix']:
+        make_filtering_matrix(model_path=arguments['--model'],
+                              interaction_history_file=arguments['--input'],
+                              output_model_path=arguments['--output'])
     else:
         raise Exception("Unimplemented ERROR")
 

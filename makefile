@@ -1,4 +1,4 @@
-VERSION ?= 1.2.4
+VERSION ?= 1.2.6
 NAME ?= altmaker
 
 REPOSITORY ?= harbor.unext.jp/datascience-dev

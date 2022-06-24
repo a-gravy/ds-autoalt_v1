@@ -154,20 +154,6 @@ class AutoAltMaker(object):
 
     def make_alt(self, **kwargs):
         raise Exception("Unimplemented Error")
-    '''
-    def read_already_reco_sids(self, already_reco_path):
-        self.already_reco_dict = {}  # format: userid, SID|SID|...
-        for line in efficient_reading(already_reco_path, True, "userid,sid_list"):
-            arr = line.rstrip().split(",")
-            self.already_reco_dict[arr[0]] = set(arr[1].split('|'))  # arr[1]
-        logging.info(f"[read_already_reco_sids] {len(self.already_reco_dict)} users read")
 
-    def rm_already_reco_sids(self, userid, sid_list):
-        rm_sids = self.already_reco_dict.get(userid, None)
-        if rm_sids:
-            return [sid for sid in sid_list if sid not in rm_sids]
-        else:
-            return sid_list
-    '''
 
 

@@ -66,7 +66,7 @@ class NewArrivalSIDs(AutoAltMaker):
         # TODO: change
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
             w.write(self.config['header']['feature_table'])
-            pbar = tqdm(efficient_reading(user_profiling_path,with_header=False)) \
+            pbar = tqdm(efficient_reading(user_profiling_path, with_header=False)) \
                 if self.pbar else efficient_reading(user_profiling_path, with_header=False)
             for line in pbar:
                 arr = line.rstrip().split(",")

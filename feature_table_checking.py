@@ -47,13 +47,15 @@ def black_empty_duplicates_checking(feature_table_path, target_users_path, black
             # SIDs checking
             sid_pool = set()
             SIDs = line.split(",")[3].split("|")
+            SIDs_to_removed = set()
             assert SIDs, f"ERROR, empty reco in {line}"
             for sid in SIDs:
-                if blacklist and arr[1] != "JFET000003":  # except for New arrivals EP(not reco, just a useful ALT), useful for binge-watching NHK Dramas users
+                if blacklist and arr[1] != "JFET000003" and not arr[1].startswith("JFET000006"):  # except for New arrivals EP(not reco, just a useful ALT), useful for binge-watching NHK Dramas users
                     assert sid not in blacklist, f"ERROR, black SID {sid} in {line}"
 
                 assert sid not in sid_pool, f"ERROR, duplicates SID:{sid} in {line}"
                 sid_pool.add(sid)
+
 
     assert len(target_users) >= len(users_got_autoalts), \
         f"ERROR nb of target users:{len(target_users)} < nb of users got autoalts:{len(users_got_autoalts)}"
