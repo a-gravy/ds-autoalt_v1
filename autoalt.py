@@ -1,12 +1,12 @@
 """autoalt
 
 Usage:
-    autoalt.py top <feature_public_code>  --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py byw <feature_public_code> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py new_arrival <feature_public_code> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py tag <feature_public_code> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py new_arrival_sids <feature_public_code> --pool_path=PATH --user_profiling_path=PATH [pbar --watched_list=PATH  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
-    autoalt.py (trending | popular | exclusives) <feature_public_code> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py top <feature_public_code> --env=<env> --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py byw <feature_public_code> --env=<env> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py new_arrival <feature_public_code> --env=<env> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py tag <feature_public_code> --env=<env> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py new_arrival_sids <feature_public_code> --env=<env> --pool_path=PATH --user_profiling_path=PATH [pbar --watched_list=PATH  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
+    autoalt.py (trending | popular | exclusives) <feature_public_code> --env=<env> --model=PATH --pool_path=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py toppick <feature_public_code> --model=PATH  [--blacklist=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH --target_users=PATH --target_items=PATH]
     autoalt.py allocate_FETs --input=PATH --output=PATH [--target_users=PATH]
     autoalt.py allocate_FETs_page <feature_public_code> --input=PATH
@@ -262,7 +262,7 @@ def main():
             arguments["popular"], arguments['coldstart'], arguments['tag'], arguments['exclusives']]):
 
         # at first, read dim_autoalt.csv
-        get_files_from_cloud(domain_name="", **{'':"data/dim_autoalt.csv"})
+        get_files_from_cloud(env=arguments["--env"], **{'':"data/dim_autoalt.csv"})
         logging.info("Unzipping files")
         unzip_files_in_dir("data/")
 
@@ -276,7 +276,8 @@ def main():
             "blacklist_path":arguments.get("--blacklist", None),
             "series_path":arguments["--series"],
             "max_nb_reco":arguments['--max_nb_reco'],
-            "min_nb_reco":arguments["--min_nb_reco"]
+            "min_nb_reco":arguments["--min_nb_reco"],
+            "env": arguments["--env"]
         }
 
         if len(alt_info) != 1:
@@ -393,6 +394,7 @@ def main():
 
         # download all files in kwarg to data/
         # get_files_from_s3(domain_name=alt_info['domain'].values[0], **kwargs)
+        logging.info(f"basic_kwarg = {kwargs}")
         get_files_from_cloud(**kwargs)
         # unzip
         logging.info("Unzipping files")

@@ -43,7 +43,7 @@ def get_trending():
 
 def get_top():
     """
-    weekly_top_genre contains lot of sakuhins, need to pick top N for each type later
+    weekly_top_genre contains lot of sakuhins, need to pick top N for each metric_name later
     """
     # in_path = str(Path("workspace/alt/weekly_top_genre.sql"))
     in_path = str(Path("workspace/alt/personalized/daily_top.sql"))

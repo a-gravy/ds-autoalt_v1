@@ -1,5 +1,5 @@
 """
-Our definition of type, genres and tags
+Our definition of metric_name, genres and tags
 """
 
 def dict_inverse(my_map):

@@ -108,7 +108,7 @@ class alt_reranker:
 
         input:
         genre_features, sid list, uid list, score list
-        type-DRAMA-genre-romance, SID|SID|..., user_nulti_account_id|..., score|score|...
+        metric_name-DRAMA-genre-romance, SID|SID|..., user_nulti_account_id|..., score|score|...
 
 
         [for starship]

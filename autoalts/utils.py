@@ -134,13 +134,11 @@ def get_files_from_gcs(**kwargs):
             blob = bucket.blob(f"autoalt_v1/dev/{file_name}")
             blob.download_to_filename(f"data/{file_name}")
 
-
 def get_files_from_cloud(**kwarg):
-    env = "prod"
+    env = kwarg.get("env")
+    assert env, f"env is empty"
+
     logging.info(f"Downloading Files (env:{env})")
-    storage_client = storage.Client()
-    gcs_bucket = storage_client.bucket("ds-airflow-jobs")
-    aws_client = boto3.client('s3')
 
     for k, v in kwarg.items():
         if not isinstance(v, str):
@@ -148,19 +146,24 @@ def get_files_from_cloud(**kwarg):
         # data/xxx.csv -> xxx.csv -> xxx.csv.gz
         # data/yyy.model -> yyy.model
         if os.path.exists(v):
-            print(f"{v} exists")
+            logging.info(f"{v} exists")
             continue
 
         file_name = os.path.basename(v)
         if v.endswith(".csv"):
-            print(f"download {file_name}")
+            # logger.info(f"download {file_name}")
+            storage_client = storage.Client()
+            gcs_bucket = storage_client.bucket("ds-airflow-jobs")
+            # gs://ds-airflow-jobs/autoaltv2/prod/
             file_name = f'{file_name}.gz' if v.endswith(".csv") else file_name  # csv files in s3 is zipped
             blob = gcs_bucket.blob(f"autoalt_v1/{env}/{file_name}")
+            logging.info(f"download {file_name}")
             blob.download_to_filename(f"data/{file_name}")
         elif 'model' in v:
             s3_dir_path = "s3://unext-datascience-prod/jobs/collaborative/ippan_gke/"
             s3_bucket, key = split_s3_path(s3_dir_path)
-            print(f"downloading {s3_bucket} {key}/{file_name}")
+            logging.info(f"downloading {s3_bucket} {key}/{file_name}")
+            aws_client = boto3.client('s3')
             with open(f"data/{file_name}", 'wb') as f:
                 aws_client.download_fileobj(s3_bucket, f"{key}/{file_name}", f)
 
