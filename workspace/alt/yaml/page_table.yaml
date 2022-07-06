@@ -1,0 +1,18 @@
+# previous version, keep it til we update to the new version
+tables:
+  - id: page_table
+    table: page_table
+    keyspace: starship
+    file: s3://unext-datascience/alts/page_table.csv.gz
+    sstable: gs://starship-storage/starship/keep/cassandra/unext/page_table.tar.gz
+    primaryKey: user_multi_account_id, page_public_code
+    compaction: "{'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}"
+    compression: "{'chunk_length_kb': '32', 'sstable_compression': 'LZ4Compressor'}"
+    ttl: 6048000
+    columns:
+    - col: user_multi_account_id
+    - col: page_public_code
+    - col: create_date
+      type: int
+    - col: feature_public_codes
+      maxChars: 40000

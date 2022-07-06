@@ -1,0 +1,1 @@
+select sakuhin_public_code, series_id, series_in_order from dim_sakuhin

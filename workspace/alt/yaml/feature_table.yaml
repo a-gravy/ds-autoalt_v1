@@ -1,0 +1,24 @@
+# previous version, keep it til we update to the new version
+tables:
+  - id: feature_table
+    table: feature_table
+    keyspace: starship
+    file: s3://unext-datascience/alts/feature_table.csv.gz
+    sstable: gs://starship-storage/starship/keep/cassandra/unext/feature_table.tar.gz
+    primaryKey: user_multi_account_id, feature_public_code
+    compaction: "{'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}"
+    compression: "{'chunk_length_kb': '32', 'sstable_compression': 'LZ4Compressor'}"
+    ttl: 604800
+    columns:
+    - col: user_multi_account_id
+    - col: feature_public_code
+    - col: sakuhin_codes
+      maxChars: 40000
+    - col: create_date
+      type: int
+    - col: domain
+    - col: autoalt
+      type: int
+    - col: feature_title
+    - col: feature_public_start_datetime
+    - col: feature_public_end_datetime

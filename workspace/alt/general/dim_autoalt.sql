@@ -1,0 +1,1 @@
+select * from dim_autoalt order by feature_score desc
