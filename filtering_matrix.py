@@ -40,6 +40,12 @@ def make_filtering_matrix(model_path, interaction_history_file, output_model_pat
     pickle.dump(model, open(output_model_path, "wb"))
 
 
+def make_filtering_matrix_v5(model_path, interaction_history_file, output_model_path):
+    model = ImplicitModel()
+    model.load_model(model_path)
+    model.merge_with_filtering_matrix(interaction_history_file)
+    model.dump_model(output_model_path)
+
 def verification(model_path):
     model = pickle.load(open(model_path, "rb"))
     logging.info(f"user-item interaction nb = {len(model.user_item_matrix.matrix.nonzero()[0])}")
