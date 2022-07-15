@@ -1,6 +1,7 @@
 import logging
 from autoalts.autoalt_maker import AutoAltMaker
 from autoalts.utils import efficient_reading
+from dscollaborative.recommender import ImplicitModel
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,6 +19,7 @@ class BecauseYouWatched(AutoAltMaker):
     def make_alt(self, **kwargs):
         if self.alt_info['domain'].values[0] == "ippan_sakuhin":
             self.video_byw(user_sid_history_path=kwargs['watched_list_path'],
+                           model_path=kwargs['model_path'],
                            cbf_table_path=kwargs['cbf_rs_list_path'],
                            postplay_path=kwargs['postplay_path'])
         elif self.alt_info['domain'].values[0] == "semiadult":
@@ -114,6 +116,7 @@ class BecauseYouWatched(AutoAltMaker):
                                                                                     nb_byw_users / nb_all_users))
 
     def video_byw(self, user_sid_history_path,
+                  model_path,
                   cbf_table_path="data/cbf_rs_list.csv",
                   postplay_path="data/postplay_implicit.csv"):
         """
@@ -130,8 +133,8 @@ class BecauseYouWatched(AutoAltMaker):
 
         :param cbf_table_path: sakuhin_public_code, rs_list
         """
-        # TODO: rerank by BPR, currrent workaround = no reranking <- may need A/B test
-        # TODO: daily update version
+        model = ImplicitModel()
+        model.load_model(model_path)
 
         logging.info("loading content-based filtering recommendation")
         cbf_dict = {}
@@ -175,6 +178,12 @@ class BecauseYouWatched(AutoAltMaker):
                 if self.target_users and userid not in self.target_users:
                     continue
 
+                user_idx = model.model.user_item_matrix.user2id.get(userid, None)
+                if user_idx:
+                    interacted_sids = [model.model.user_item_matrix.id2item[idx] for idx in model.model.user_item_matrix.matrix[user_idx].nonzero()[1]]
+                else:
+                    interacted_sids = set()
+
                 nb_all_users += 1
                 if nb_all_users % 10000 == 0:
                     logging.info(f"Now processing No.{nb_all_users} user")
@@ -186,7 +195,8 @@ class BecauseYouWatched(AutoAltMaker):
                         continue
 
                     cbf_reco = cbf_dict.get(watched_SID, None)
-                    ban_list = self.blacklist | set(watched_SIDs)
+                    # ban_list = self.blacklist | set(watched_SIDs) | set(interacted_sids)
+                    ban_list = self.blacklist | set(watched_SIDs) | set(interacted_sids)
 
                     if cbf_reco:
                         cbf_reco = [sid for sid in cbf_reco.split("|") if sid not in ban_list]  # cbf = SID|SID|...

@@ -2,7 +2,7 @@
 
 Usage:
     autoalt.py top <feature_public_code> --env=<env> --input=PATH  [--blacklist=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
-    autoalt.py byw <feature_public_code> --env=<env> --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
+    autoalt.py byw <feature_public_code> --env=<env> --model=PATH  --sid_name=PATH --watched_list=PATH  --postplay=PATH [--blacklist=PATH  --target_users=PATH --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py new_arrival <feature_public_code> --env=<env> [--input=PATH --model=PATH  --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH]
     autoalt.py tag <feature_public_code> --env=<env> --model=PATH --watched_list=PATH [--reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
     autoalt.py new_arrival_sids <feature_public_code> --env=<env> --pool_path=PATH --user_profiling_path=PATH [pbar --watched_list=PATH  --reco_record=PATH --blacklist=PATH  --target_users=PATH  --max_nb_reco=<tn> --min_nb_reco=<tn> --series=PATH  --batch_size=<bs>]
@@ -15,6 +15,7 @@ Usage:
     autoalt.py rm_series --input=PATH --output=PATH --series=PATH --target_users=PATH
     autoalt.py coldstart <feature_public_code> --input=PATH
     autoalt.py make_filtering_matrix --model=PATH  --input=PATH --output=PATH
+    autoalt.py make_filtering_matrix_v5 --model=PATH  --input=PATH --output=PATH
 
 Options:
     -h --help Show this screen
@@ -337,6 +338,7 @@ def main():
                 'target_users_path': arguments.get('--target_users', None),
                 'sid_name_path':arguments["--sid_name"],
                 # below are for alt.make_alt()
+                'model_path': arguments["--model"],
                 'watched_list_path':arguments["--watched_list"],
                 'cbf_rs_list_path':"data/cbf_rs_list.csv",
                 'postplay_path':arguments["--postplay"],
@@ -420,6 +422,10 @@ def main():
         toppick_rm_series(series_path=arguments['--series'], input=arguments['--input'], output=arguments['--output'],
                           target_users_path=arguments['--target_users'])
     elif arguments['make_filtering_matrix']:
+        make_filtering_matrix(model_path=arguments['--model'],
+                              interaction_history_file=arguments['--input'],
+                              output_model_path=arguments['--output'])
+    elif arguments['make_filtering_matrix_v5']:
         make_filtering_matrix(model_path=arguments['--model'],
                               interaction_history_file=arguments['--input'],
                               output_model_path=arguments['--output'])
