@@ -1,7 +1,7 @@
 """
-
+Our definition of metric_name, genres and tags
 """
-# tmply useless
+
 def dict_inverse(my_map):
     inv_map = {}
     for k, v in my_map.items():
@@ -9,24 +9,28 @@ def dict_inverse(my_map):
         inv_map[v].append(k)
     return inv_map
 
-types = ['MOVIE', 'DRAMA', 'ANIME', 'VARIETY', 'MUSIC_IDOL', 'DOCUMENT', 'KIDS', 'NEWS']
+# types come from main_genre_code,
+types = ['movie', 'drama', 'anime', 'variety', 'music_idol', 'document', 'kids', 'news', 'semiadult', 'fdrama', 'adrama', 'youga', 'houga']
+"""
 tpye_mapping = {
-    "FDRAMA":"DRAMA",
-    "ADRAMA":"DRAMA",
-    "YOUGA":"MOVIE",
-    "HOUGA":"MOVIE"
-}
+    "FDRAMA":"drama",
+    "ADRAMA":"drama",
+    "YOUGA":"movie",
+    "HOUGA":"movie"
+}"""
 
-# TODO: nation mapping
 nations_mapping = {}
 nations = []
 
-genres = ['action','comedy', 'detective','documentary','fantasy','historical','horror',
+# genres come from menu_name
+genres = ['action','comedy', 'drama', 'detective','documentary','fantasy','historical','horror',
           'musicals_dance', 'mystery', 'romance', 'SF', 'family','war']
 genres_mapping = {
     'アクション':'action',
     'アクション・バトル':'action',
     'コメディ':'comedy',
+    'ギャグ・コメディ':'comedy',
+    'ドラマ':'drama',
     '刑事・探偵':'detective',
     'ドキュメンタリー':'documentary',
     'ファンタジー':'fantasy',
@@ -44,16 +48,18 @@ genres_mapping = {
     'ラブコメディ':'romance',
     'ラブロマンス':'romance',
     'ラブストーリー・ラブコメディ':'romance',
-    'ロマンスシネマ':'romance',
+    'ロマンスシネマ':'romance',  # semi-adult
     'ファミリー・キッズ':'family',
     '戦争':'war',
     'ミリタリー':'war',
 }
 
+
+# tags come from menu_name
 # TODO: convert to english
 tags = ['おんなのこ',
        '劇場版アニメ（国内）', '青春・学園', 'ロボット・メカ',
-       'おとこのこ',  'フジテレビオンデマンド',  'ギャグ・コメディ',
+       'おとこのこ',  'フジテレビオンデマンド',
        'どうぶつ', 'スポーツ・競技', '日テレオンデマンド',  'ヒーロー・かいじゅう',
        'ディズニー', 'R指定', 'パラマウント',
        'ワーナーTV',  'テレビ東京オンデマンド', 'ガールズ',

@@ -4,6 +4,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.csv
+*.gz
+/data
+user_profiling_tags/
+JFET000006/
+.idea/
 
 # C extensions
 *.so
@@ -11,6 +17,9 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+tmp/
+check/
+fets/
 develop-eggs/
 dist/
 downloads/
@@ -121,7 +130,7 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# Pyre type checker
+# Pyre metric_name checker
 .pyre/
 
 ### Linux template

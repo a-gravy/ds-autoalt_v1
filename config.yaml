@@ -1,0 +1,41 @@
+header:
+  feature_table: "user_multi_account_id,feature_public_code,create_date,sakuhin_codes,feature_title,domain,autoalt,feature_public_start_datetime,feature_public_end_datetime\n"
+
+feature_public_start_datetime: 2020-01-01 00:00:00
+feature_public_end_datetime: 2029-12-31 23:59:59
+
+s3_dir:
+  #####
+  alt_root: s3://unext-datascience/alts/
+  ippan_sakuhin: s3://unext-datascience/alts/ippan_sakuhin/
+  semiadult: s3://unext-datascience/alts/semiadult/
+  model_root: s3://unext-datascience-prod/jobs/collaborative/ippan/
+
+  # jobs/collaborative/ippan/implicit_bpr.model.2021-10-03
+  #####
+  dim_autoalt.csv: s3://unext-datascience/alts/
+  control_users.csv: s3://unext-datascience/alts/
+  treatment_a_users.csv: s3://unext-datascience/alts/
+  treatment_b_users.csv: s3://unext-datascience/alts/
+  target_super.csv: s3://unext-datascience/alts/
+  target_users.csv: s3://unext-datascience/alts/
+  superusers.csv: s3://unext-datascience/alts/
+  sid_series.csv: s3://unext-datascience/alts/
+  sid_name_dict.csv: s3://unext-datascience/alts/
+  pfid_0_users.csv: s3://unext-datascience/alts/
+  pfid_1_users.csv: s3://unext-datascience/alts/
+  pfid_2_users.csv: s3://unext-datascience/alts/
+  pfid_3_users.csv: s3://unext-datascience/alts/
+  pfid_4_users.csv: s3://unext-datascience/alts/
+  pfid_5_users.csv: s3://unext-datascience/alts/
+  pfid_6_users.csv: s3://unext-datascience/alts/
+  pfid_7_users.csv: s3://unext-datascience/alts/
+  pfid_8_users.csv: s3://unext-datascience/alts/
+  pfid_9_users.csv: s3://unext-datascience/alts/
+
+  # postplay_ippan.csv: s3://unext-datascience-prod/jobs/autoalt/
+  titledetail_reco.csv : s3://unext-datascience-prod/jobs/autoalt/
+
+  cbf_rs_list.csv: s3://unext-datascience/cbf_rs/
+  toppick.csv : s3://unext-datascience/starfish/keep/cassandra/unext/ippan/collab/
+  recorecord.pkl : s3://unext-datascience/alts/ippan_sakuhin/

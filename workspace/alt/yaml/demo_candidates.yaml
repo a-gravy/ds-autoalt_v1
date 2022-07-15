@@ -1,0 +1,11 @@
+tables:
+  - id: demo_candidates
+    table: demo_candidates
+    keyspace: starship
+    file: s3://unext-datascience/alts/demo_candidates.csv.gz
+    sstable: gs://starship-storage/starship/keep/cassandra/unext/ippan/demo_candidates_sstable.tar.gz
+    primaryKey: user_multi_account_id
+    compaction: "{'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}"
+    compression: "{'chunk_length_kb': '32', 'sstable_compression': 'LZ4Compressor'}"
+    columns:
+    - col: user_multi_account_id
