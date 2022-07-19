@@ -126,7 +126,7 @@ class Serendipity(SimilarityMetric):
         self.top_n = 5  # only run on top N items
 
         # build history record matrix
-        logging.info("")
+        logging.info("building history record matrix")
         self.history_matrix = lil_matrix((len(self.user2id), len(self.item2id)), dtype=int)
         # history SIDs may be too heavy
         # user_multi_account_id,sids,genres,play_times
@@ -162,14 +162,12 @@ class Serendipity(SimilarityMetric):
                     r_sid_indices = [self.item2id[x] for x in sids if x in self.item2id]
                     if not user_idx or not r_sid_indices:
                         continue
-                    # history
                     h_sid_indices = self.history_matrix.rows[user_idx]
                     if not h_sid_indices:
                         continue
 
                     alt_idx = self.feat_idx_table.get(line['feature_public_code'], self.feat_idx_table['chotatsu'])
                     serendipity_value = self.cal_unserendipity(h_sid_indices, r_sid_indices)
-                    # print(f"serendipity_value = {serendipity_value}")
                     if not math.isnan(serendipity_value):
                         metric_matrix[user_idx, alt_idx] = serendipity_value
 
@@ -224,7 +222,6 @@ class Novelty(NonAccMetrics):
         self.nb_user = len(self.users_set)
 
     def load_training_data(self, training_data):
-        # user_sakuhin_score.csv
         logging.info("load_training_data")
         with open(training_data, "r") as csv_path:
             reader = csv.DictReader(csv_path)
@@ -288,10 +285,8 @@ class CatalogCoverage(NonAccMetrics):
         logging.info(f"nb of all items = {len(self.all_sids)}")
 
     def calculate(self, reco_path):
-        # reco_sids = set()  # autoalt + chotatsu
-        reco_sids_autoalts = set()  #
+        reco_sids_autoalts = set()
         reco_sids_chotatsu = set()
-        # "/Users/s-chuenkai/PycharmProjects/check/autoalt_ippan_features_2022-07-01.csv"
         with open(reco_path, "r") as csv_path:
             reader = csv.DictReader(csv_path)
             for line in tqdm(reader, miniters=self.miniters):
@@ -312,4 +307,3 @@ class CatalogCoverage(NonAccMetrics):
         logging.info(f"[chotatsu] nb of items got reco = {len(reco_sids_chotatsu & self.all_sids)}/{len(self.all_sids)}  = {self.chotatsu_value}")
 
         self.output()
-
