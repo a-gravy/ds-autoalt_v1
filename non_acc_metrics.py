@@ -95,12 +95,30 @@ class SimilarityMetric(NonAccMetrics):
 
     @staticmethod
     def pairwise_matrix_cos_sim(vectors):
+        """
+        calculate cos_sim between items inside a list,
+        :param vectors: array of vectors
+        :return:
+        """
         s = pairwise.cosine_similarity(vectors)
         div = (2*(s.shape[0]*s.shape[0]-s.shape[0])/2)
         if div <= 0.00001:
             return 0
         else:
             return (np.sum(s) - s.shape[0])/div
+
+    @staticmethod
+    def cos_sim_2d_intra_list(vectors):
+        """
+        calculate cos_sim between items inside a list,
+        faster than pairwise_matrix_cos_sim
+        :param vectors: array of vectors
+        :return:
+        """
+        norm_x = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+        s = np.matmul(norm_x, norm_x.T)
+        div = (2*(s.shape[0]*s.shape[0]-s.shape[0])/2)
+        return (np.sum(s) - s.shape[0])/div
 
     @staticmethod
     def make_item_feat_vectors(sakuhin_meta_path: str) -> dict:
@@ -150,7 +168,14 @@ class Serendipity(SimilarityMetric):
 
         return np.mean(overall_sim_list)
 
+    @staticmethod
+    def cos_sim_2d(x, y):
+        norm_x = x / np.linalg.norm(x, axis=1, keepdims=True)
+        norm_y = y / np.linalg.norm(y, axis=1, keepdims=True)
+        return np.mean(np.matmul(norm_x, norm_y.T))
+
     def calculate(self, reco):
+        logging.info("start calculating ...")
         metric_matrix = np.zeros((len(self.user2id), self.feat_idx_table['chotatsu']+1))
 
         with open(reco, "r") as csv_path:
@@ -166,10 +191,11 @@ class Serendipity(SimilarityMetric):
                     if not h_sid_indices:
                         continue
 
-                    alt_idx = self.feat_idx_table.get(line['feature_public_code'], self.feat_idx_table['chotatsu'])
-                    serendipity_value = self.cal_unserendipity(h_sid_indices, r_sid_indices)
-                    if not math.isnan(serendipity_value):
-                        metric_matrix[user_idx, alt_idx] = serendipity_value
+                    # serendipity_value = self.cal_unserendipity(h_sid_indices, r_sid_indices)
+                    cos_sim = self.cos_sim_2d(self.item_feat_matrix[h_sid_indices], self.item_feat_matrix[r_sid_indices])
+                    if not math.isnan(cos_sim):
+                        alt_idx = self.feat_idx_table.get(line['feature_public_code'], self.feat_idx_table['chotatsu'])
+                        metric_matrix[user_idx, alt_idx] = cos_sim
 
         alt_sim_sums = np.sum(metric_matrix, axis=0)
         alt_sim_cnts = np.count_nonzero(metric_matrix, axis=0)
@@ -198,7 +224,7 @@ class Diversity(SimilarityMetric):
                     if not user_idx or not sid_indices:
                         continue
                     alt_idx = self.feat_idx_table.get(line['feature_public_code'], self.feat_idx_table['chotatsu'])
-                    similarity = self.pairwise_matrix_cos_sim(self.item_feat_matrix[sid_indices])
+                    similarity = self.cos_sim_2d_intra_list(self.item_feat_matrix[sid_indices])
                     if similarity:
                         metric_matrix[user_idx, alt_idx] = similarity
 
