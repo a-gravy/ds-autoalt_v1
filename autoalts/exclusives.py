@@ -1,4 +1,6 @@
 import logging
+import os.path
+from tqdm import tqdm
 import pandas as pd
 import operator
 from autoalts.autoalt_maker import AutoAltMaker
@@ -33,7 +35,7 @@ class Exclusives(AutoAltMaker):
         else:
             raise Exception(f"unknown ALT_domain:{self.alt_info['domain'].values[0]}")
 
-    def ippan_sakuhin(self, pool_path, model_path):
+    def ippan_sakuhin_old(self, pool_path, model_path):
 
         ranker = Ranker(model_path=model_path)
 
@@ -50,15 +52,17 @@ class Exclusives(AutoAltMaker):
         nb_all_users = 0
         nb_output_users = 0
 
-        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
-            w.write(self.config['header']['feature_table'])
-            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
-                                                filter_already_liked_items=True, batch_size=self.batch_size):
-                nb_all_users += 1
-                if nb_all_users % 50000 == 0:
-                    logging.info(
-                        'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
+        if not os.path.exists(f"{self.alt_info['feature_public_code'].values[0]}.csv"):  # if this is the first one writing this file, then output header
+            logging.info("first one to create file, write header")
+            with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+                w.write(self.config['header']['feature_table'])
+        else:
+            logging.info(f"{self.alt_info['feature_public_code'].values[0]}.csv exists")
 
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+            for userid, sid_list in tqdm(ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
+                                                filter_already_liked_items=True, batch_size=self.batch_size), miniters=50000):
+                nb_all_users += 1
                 # remove blacklist
                 rm_sids = self.blacklist
                 reco = [SID for SID in sid_list if SID not in rm_sids]
@@ -111,14 +115,17 @@ class Exclusives(AutoAltMaker):
         nb_all_users = 0
         nb_output_users = 0
 
+        if not os.path.exists(f"{self.alt_info['feature_public_code'].values[0]}.csv"):  # if this is the first one writing this file, then output header
+            logging.info("first one to create file, write header")
+            with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+                w.write(self.config['header']['feature_table'])
+        else:
+            logging.info(f"{self.alt_info['feature_public_code'].values[0]}.csv exists")
+
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
-            w.write(self.config['header']['feature_table'])
-            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
-                                                filter_already_liked_items=True, batch_size=self.batch_size):
+            for userid, sid_list in tqdm(ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
+                                                filter_already_liked_items=True, batch_size=self.batch_size), miniters=50000):
                 nb_all_users += 1
-                if nb_all_users % 50000 == 0:
-                    logging.info(
-                        'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
                 # remove blacklist & sids got reco already
                 reco = self.remove_black_duplicates(userid, sid_list)[:self.max_nb_reco]

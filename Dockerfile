@@ -30,7 +30,7 @@ RUN echo "source activate $(head -1 env.yml | cut -d' ' -f2)" > ~/.bashrc
 ENV PATH /opt/conda/envs/$(head -1 env.yml | cut -d' ' -f2)/bin:$PATH
 
 # TODO Increment the number to force-refresh the lower layers.
-RUN echo '7'
+RUN echo '8'
 
 COPY *.py /app/
 COPY bpr /app/bpr

@@ -193,7 +193,7 @@ class Serendipity(SimilarityMetric):
 
                     # serendipity_value = self.cal_unserendipity(h_sid_indices, r_sid_indices)
                     cos_sim = self.cos_sim_2d(self.item_feat_matrix[h_sid_indices], self.item_feat_matrix[r_sid_indices])
-                    if not math.isnan(cos_sim):
+                    if not math.isnan(cos_sim) and not math.isinf(cos_sim):
                         alt_idx = self.feat_idx_table.get(line['feature_public_code'], self.feat_idx_table['chotatsu'])
                         metric_matrix[user_idx, alt_idx] = cos_sim
 
@@ -203,8 +203,8 @@ class Serendipity(SimilarityMetric):
             logging.info("{} = {:.2f}%".format(name, (1.0 - (alt_sim_sum/alt_sim_cnt))*100))
 
         self.all_value = 1 - np.sum(alt_sim_sums)/np.sum(alt_sim_cnts)
-        self.autoalt_value = 1 - np.sum(alt_sim_sums)[:-1]/np.sum(alt_sim_cnts)[:-1]
-        self.chotatsu_value = 1 - np.sum(alt_sim_sums)[-1]/np.sum(alt_sim_cnts)[-1]
+        self.autoalt_value = 1 - np.sum(alt_sim_sums[:-1])/np.sum(alt_sim_cnts[:-1])
+        self.chotatsu_value = 1 - np.sum(alt_sim_sums[-1])/np.sum(alt_sim_cnts[-1])
         self.output()
 
 
@@ -224,9 +224,9 @@ class Diversity(SimilarityMetric):
                     if not user_idx or not sid_indices:
                         continue
                     alt_idx = self.feat_idx_table.get(line['feature_public_code'], self.feat_idx_table['chotatsu'])
-                    similarity = self.cos_sim_2d_intra_list(self.item_feat_matrix[sid_indices])
-                    if similarity:
-                        metric_matrix[user_idx, alt_idx] = similarity
+                    cos_sim = self.cos_sim_2d_intra_list(self.item_feat_matrix[sid_indices])
+                    if not math.isnan(cos_sim) and not math.isinf(cos_sim):
+                        metric_matrix[user_idx, alt_idx] = cos_sim
 
         alt_sim_sum = np.sum(metric_matrix, axis=0)
         alt_sim_cnt = np.count_nonzero(metric_matrix, axis=0)
@@ -234,8 +234,8 @@ class Diversity(SimilarityMetric):
             logging.info("{} = {:.2f}%".format(name, (1-v)*100))
 
         self.all_value = 1 - np.sum(alt_sim_sum)/np.sum(alt_sim_cnt)
-        self.autoalt_value = 1 - np.sum(alt_sim_sum)[:-1]/np.sum(alt_sim_cnt)[:-1]
-        self.chotatsu_value = 1 - np.sum(alt_sim_sum)[-1]/np.sum(alt_sim_cnt)[-1]
+        self.autoalt_value = 1 - np.sum(alt_sim_sum[:-1])/np.sum(alt_sim_cnt[:-1])
+        self.chotatsu_value = 1 - np.sum(alt_sim_sum[-1])/np.sum(alt_sim_cnt[-1])
         self.output()
 
 

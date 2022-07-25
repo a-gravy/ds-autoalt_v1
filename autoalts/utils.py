@@ -380,7 +380,7 @@ def main():
                           superusers_path=arguments["--superusers"])
     elif arguments['tmp']:
         kwargs = {
-            "x":"user_sid_history.csv",
+            "vectors":"user_sid_history.csv",
             #"z":"popular.csv",
             #"m": "als_model.latest"
         }

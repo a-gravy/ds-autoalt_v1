@@ -92,7 +92,7 @@ class Ranker:
         """
         # filtering out users who are not in matrix
         # filtered_users = self.collab_model.filter_users(target_users)
-        # filtered_users_ids = list(map(lambda x: self.collab_model.model.user_item_matrix.user2id[x], filtered_users))
+        # filtered_users_ids = list(map(lambda vectors: self.collab_model.model.user_item_matrix.user2id[vectors], filtered_users))
         filtered_users_ids = list(map(lambda x: self.collab_model.model.user_item_matrix.user2id[x], target_users))
 
         # filtering out items who are not in matrix

@@ -355,7 +355,7 @@ def feature_ranking(model_path, target_users_path, output_file_name,
     dtop_index_feature = dict(zip(dtop.index, dtop["feature_public_code"]))
     print(dtop_index_feature)
 
-    ############################ Create toppick x sids matrix (just one toppick)
+    ############################ Create toppick vectors sids matrix (just one toppick)
     top_np = np.full((dtop.shape[0], len(model.user_item_matrix.item2id)), 0)
     for fet in dtop_feature_id_s_list.keys():
         for sids in dtop_feature_id_s_list[fet]:
@@ -551,10 +551,10 @@ def feature_ranking(model_path, target_users_path, output_file_name,
                         wan_tsuu = [top_list[0][:50], top_list[0][50:100]]
 
                         # def rerank_ucb(l1,l2):
-                        #    argsortons = np.array(list(map(lambda x : d_fet_ucb[x[0]] if x[0] in d_fet_ucb else 0,l1)))
+                        #    argsortons = np.array(list(map(lambda vectors : d_fet_ucb[vectors[0]] if vectors[0] in d_fet_ucb else 0,l1)))
                         #    new_order = (-argsortons).argsort()
-                        #    new_l1 = [ l1[x] for x in new_order]
-                        #    new_l2 = [ l2[x] for x in new_order]
+                        #    new_l1 = [ l1[vectors] for vectors in new_order]
+                        #    new_l2 = [ l2[vectors] for vectors in new_order]
                         #    return new_l1, new_l2
 
                         ########################## reranking using the ucb score from GP
@@ -625,7 +625,7 @@ def coldstart_ranking(output_file_name, coldstart_result_path,
     # dff = pd.read_sql(query_feats, prod_engine)
     users_fet_list = dff.feature_public_code.values
     users_fet_score = dff.feature_score.values
-    # users_fet_sid = list(map(lambda x : x.split('|'),dff.sakuhin_codes.values))
+    # users_fet_sid = list(map(lambda vectors : vectors.split('|'),dff.sakuhin_codes.values))
     users_fet_tag = dff.tag_name.values
     users_fet_rnk = dff.feature_rnk.values
     target_users = 'coldstart'

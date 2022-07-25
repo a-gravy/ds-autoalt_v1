@@ -88,7 +88,7 @@ class NewArrivalSIDs(AutoAltMaker):
                     total_time += int(playt_time)
 
                 preference = list(profile.keys())
-                prob = [x/total_time for x in profile.values()]  # [float(x)/100.0 for x in arr[2].split("|")[:-1]]
+                prob = [x/total_time for x in profile.values()]  # [float(vectors)/100.0 for vectors in arr[2].split("|")[:-1]]
                 prob[-1] = (1.0 - sum(prob[:-1]))
                 genre_order = np.random.choice(preference, size=50, replace=True, p=prob)
 

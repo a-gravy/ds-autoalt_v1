@@ -5,10 +5,12 @@ no other special operations
 
 e.g. popular & trending
 """
+import os
 import logging
 from autoalts.autoalt_maker import AutoAltMaker
 from autoalts.utils import efficient_reading
 from ranker import Ranker
+from tqdm import tqdm
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,15 +53,18 @@ class BasicALT(AutoAltMaker):
         nb_all_users = 0
         nb_output_users = 0
 
+        if not os.path.exists(f"{self.alt_info['feature_public_code'].values[0]}.csv"):  # if this is the first one writing this file, then output header
+            logging.info("first one to create file, write header")
+            with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+                w.write(self.config['header']['feature_table'])
+        else:
+            logging.info(f"{self.alt_info['feature_public_code'].values[0]}.csv exists")
+
         with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
-            w.write(self.config['header']['feature_table'])
             #for userid, sid_list, score_list in rerank(model, target_users=self.target_users, target_items=pool_SIDs, filter_already_liked_items=True, batch_size=10000):
-            for userid, sid_list in ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
-                                                filter_already_liked_items=True, batch_size=self.batch_size):
+            for userid, sid_list in tqdm(ranker.rank(target_users=self.target_users, target_items=pool_SIDs,
+                                                filter_already_liked_items=True, batch_size=self.batch_size), miniters=50000):
                 nb_all_users += 1
-                if nb_all_users % 50000 == 0:
-                    logging.info(
-                        'progress: {:.3f}%'.format(float(nb_all_users) / len(model.user_item_matrix.user2id) * 100))
 
                 # remove blacklist & sids got reco already
                 reco = self.remove_black_duplicates(userid, sid_list)

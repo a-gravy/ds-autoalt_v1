@@ -1,4 +1,5 @@
-import logging
+import os, logging
+from tqdm import tqdm
 from autoalts.autoalt_maker import AutoAltMaker
 from autoalts.utils import efficient_reading
 from dscollaborative.recommender import ImplicitModel
@@ -168,16 +169,23 @@ class BecauseYouWatched(AutoAltMaker):
         nb_byw_users = 0
 
         logging.info("making because_you_watched rows for new session users")
-        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "w") as w:
-            w.write(self.config['header']['feature_table'])
 
-            for line in efficient_reading(user_sid_history_path):
+        if not os.path.exists(f"{self.alt_info['feature_public_code'].values[0]}.csv"):  # if this is the first one writing this file, then output header
+            logging.info("first one to create file, write header")
+            with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+                w.write(self.config['header']['feature_table'])
+        else:
+            logging.info(f"{self.alt_info['feature_public_code'].values[0]}.csv exists")
+
+        with open(f"{self.alt_info['feature_public_code'].values[0]}.csv", "a") as w:
+            for line in tqdm(efficient_reading(user_sid_history_path), miniters=50000):
                 arr = line.rstrip().split(",")  # user_multi_account_id,sids
                 userid = arr[0]
 
                 if self.target_users and userid not in self.target_users:
                     continue
 
+                # history filtering
                 user_idx = model.model.user_item_matrix.user2id.get(userid, None)
                 if user_idx:
                     interacted_sids = [model.model.user_item_matrix.id2item[idx] for idx in model.model.user_item_matrix.matrix[user_idx].nonzero()[1]]
@@ -185,8 +193,6 @@ class BecauseYouWatched(AutoAltMaker):
                     interacted_sids = set()
 
                 nb_all_users += 1
-                if nb_all_users % 10000 == 0:
-                    logging.info(f"Now processing No.{nb_all_users} user")
 
                 watched_SIDs = arr[1].split("|")
 
